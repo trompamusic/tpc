@@ -25,7 +25,10 @@ app_config_file: configuration file containing information about the program
 
 client_file: a client configuration file created by the TPL of the client software. It describes the input/output/parameter of a specific algorithm
 
-force: a flag inficating that the app will be registered to the CE even if it has been done before (creates a new application/entry point/control action nodes)
+force: (0 or 1) a flag inficating that the app will be registered to the CE even if it has been done before (creates a new application/entry point/control action nodes)
+
+execute: (0 or 1) a flag indicating if the algorithm will be executed or not (display only the command)
+Examples of the configuration files can be found in the ./config/ folder
 
 ## Processing Library Client
 
