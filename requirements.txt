@@ -1,2 +1,2 @@
-validators=0.18.1
-minio=7.00
+validators==0.18.1
+minio==7.00
