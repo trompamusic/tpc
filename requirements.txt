@@ -1,0 +1,3 @@
+-e https://github.com/trompamusic/trompa-ce-client
+validators
+minio
