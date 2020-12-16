@@ -13,7 +13,14 @@ This repo contains two main programs:
 
 pip install git+https://github.com/trompamusic/trompa-ce-client.git@tpl
 
-pip install git+https://github.com/aggelosgkiokas/tpl.git
+git clone https://github.com/trompamusic/tpl
+
+cd tpl
+
+pip install -r requirements.txt
+
+python setup.py install
+
 
 ## Processing Library 
 
