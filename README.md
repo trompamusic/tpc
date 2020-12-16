@@ -11,7 +11,8 @@ This repo contains two main programs:
 
 
 ## Installation
-pip install 
+pip install -r requirements.txt
+pip install git+https://github.com/aggelosgkiokas/tpl.git
 
 ## Processing Library 
 
@@ -30,6 +31,8 @@ force: (0 or 1) a flag inficating that the app will be registered to the CE even
 execute: (0 or 1) a flag indicating if the algorithm will be executed or not (display only the command)
 Examples of the configuration files can be found in the ./config/ folder
 
+###Note:
+In order to run the docker commands (algorithms) TPL should be run as root
 ## Processing Library Client
 
 To invoke one the TPL for a specific algorithm/software one has to run the following:
