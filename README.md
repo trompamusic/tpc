@@ -1,5 +1,4 @@
-
-#TROMPA Processing Library
+# TROMPA Processing Library
 
 Aggelos Gkiokas (aggelos.gkiokas@upf.edu)
 
