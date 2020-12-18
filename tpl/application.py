@@ -346,7 +346,7 @@ class TPLapp():
             config.write(configfile)
         configfile.close()
 
-    async def listen_requests(self,debug_flag):
+    async def listen_requests(self,execute_flag):
     # it listen for new entry point subscriptions and executes some code
 
         self.websocket_host = trompace.config.config.websocket_host
@@ -372,7 +372,7 @@ class TPLapp():
                     request_data = trompace.connection.submit_query(qry, auth_required=False)
                     print(request_data)
                     params = tpl.tools.get_ca_params(request_data)
-                    await self.execute_command(params, control_id, debug_flag)
+                    await self.execute_command(params, control_id, execute_flag)
 
                 if not is_ok:
                     raise Exception("don't have an ack yet")
@@ -426,7 +426,7 @@ class TPLapp():
         return [command_dict, input_files, output_files]
 
 
-    async def execute_command(self, params, control_id, debug_flag):
+    async def execute_command(self, params, control_id, execute_flag):
         # update control_id status to running
         qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                 trompace.constants.ActionStatusType.ActiveActionStatus)
@@ -442,10 +442,10 @@ class TPLapp():
 
         if self.requires_docker:
             docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute
-            if debug_flag:
-                print(docker_cmd)
-            else:
+            if execute_flag:
                 os.system(docker_cmd)
+            else:
+                print(docker_cmd)
 
             for o in range(self.outputs_n):
                 # upload data to server
