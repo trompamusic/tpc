@@ -36,6 +36,7 @@ class TPLapp():
         the class constructor reads the application configuration file and the ce configuration file, stores all the
         needed and also initializes the ce-client connection
         '''
+
         # create a CE connection
         self.ce_config = ce_config
         self.application_config = application_config
@@ -86,7 +87,7 @@ class TPLapp():
         self.s3_secret = self.connection_parser.get('s3', 'secret_key')
         self.s3_server = self.connection_parser.get('s3', 'server')
         self.s3_public_server = self.connection_parser.get('s3', 'public_server')
-
+        self.authenticate = self.connection_parser.getboolean('auth','required')
         #minio client for uploading results
         self.minioclient = minio.Minio(
             self.s3_server,
@@ -178,6 +179,8 @@ class TPLapp():
         file = open(self.encrypt_fn, 'rb')
         self.key = file.read()
         file.close()
+        self.constants = dict()
+        self.constants['*TPL_DATA'] = self.s3_public_server
 
     def register(self):
 
@@ -192,14 +195,14 @@ class TPLapp():
             description=self.description,
             language=self.language)
 
-        response = trompace.connection.submit_query(qry, auth_required=True)
+        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         self.application_id = response['data']['CreateSoftwareApplication']['identifier']
         self.config_parser['Application']['id'] = self.application_id
 
         qry = trompace.mutations.controlaction.mutation_create_controlaction(name=self.control_action,
                                                                              description=self.description)
-        response = trompace.connection.submit_query(qry, auth_required=True)
+        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
         self.controlaction_id = response['data']['CreateControlAction']['identifier']
         self.config_parser['ControlAction']['id'] = self.controlaction_id
 
@@ -215,19 +218,19 @@ class TPLapp():
             contentType=[self.content_type],
             encodingType=[self.encoding_type])
 
-        response = trompace.connection.submit_query(qry, auth_required=True)
+        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
         self.entrypoint_id = response['data']['CreateEntryPoint']['identifier']
         self.config_parser['EntryPoint']['id'] = self.entrypoint_id
 
         qry = trompace.mutations.application.mutation_add_entrypoint_application(
             application_id=self.application_id,
             entrypoint_id=self.entrypoint_id)
-        response = trompace.connection.submit_query(qry, auth_required=True)
+        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         qry = trompace.mutations.controlaction.mutation_add_entrypoint_controlaction(
             entrypoint_id=self.entrypoint_id,
             controlaction_id=self.controlaction_id)
-        response = trompace.connection.submit_query(qry, auth_required=True)
+        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
@@ -237,13 +240,13 @@ class TPLapp():
                 description=self.inputs[label].description,
                 rangeIncludes=self.inputs[label].rangeIncludes)
 
-            resp = trompace.connection.submit_query(qry, auth_required=True)
+            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
             self.inputs[label].id = resp['data']['CreateProperty']['identifier']
             self.config_parser['Input'+str(i+1)]['id'] = self.inputs[label].id
 
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.inputs[label].id)
-            resp = trompace.connection.submit_query(qry, auth_required=True)
+            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
             print(resp)
 
         for i in range(self.params_n):
@@ -259,7 +262,7 @@ class TPLapp():
                 valuePattern=self.params[label].valuePattern,
                 valueRequired=self.params[label].valueRequired)
 
-            resp = trompace.connection.submit_query(qry, auth_required=True)
+            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
             self.params[label].id = resp['data']['CreatePropertyValueSpecification']['identifier']
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.params[label].id)
@@ -267,7 +270,7 @@ class TPLapp():
 
             # qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
             #     self.controlaction_id, self.params[i].id)
-            resp = trompace.connection.submit_query(qry, auth_required=True)
+            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         fp = open(self.application_config,'w')
         self.config_parser.write(fp)
@@ -345,12 +348,20 @@ class TPLapp():
     async def listen_requests(self,debug_flag):
     # it listen for new entry point subscriptions and executes some code
 
-        self.websocket_port = trompace.config.config.websocket_host
-        print(self.websocket_port)
+        self.websocket_host = trompace.config.config.websocket_host
+        print(self.websocket_host)
         subscription = trompace.subscriptions.controlaction.subscription_controlaction(self.entrypoint_id)
         INIT_STR = """{"type":"connection_init","payload":{}}"""
-        async with websockets.connect(self.websocket_port, subprotocols=['graphql-ws']) as websocket:
+
+       # self.websocket_port = "ws://api-test.trompamusic.eu//graphql"
+       # async with websockets.connect(self.websocket_port, subprotocols=['graphql-ws']) as websocket:
+     #   async with websockets.connect(self.websocket_port, subprotocols=['graphql-ws']) as websocket:
+   #     self.websocket_port = "wss://api-test.trompamusic.eu/graphql"
+        async with websockets.connect(self.websocket_host, subprotocols=['graphql-ws']) as websocket:
+
             await websocket.send(INIT_STR)
+          #  await websocket.send(subscription)
+
             async for message in websocket:
                 if message == """{"type":"connection_ack"}""":
                     is_ok = True
@@ -404,7 +415,10 @@ class TPLapp():
             for i in range(self.params_n):
                 label = 'Param{}'.format(i + 1)
                 if self.params[label].argument == key:
-                    command_dict[label] = key + " " + params[key] + " "
+                    if params[key] in self.constants.keys():
+                        command_dict[label] = key + " " + self.constants[params[key]] + " "
+                    else:
+                        command_dict[label] = key + " " + params[key] + " "
 
         output_files = []
         for i in range(self.outputs_n):
@@ -413,14 +427,14 @@ class TPLapp():
             command_dict[label] = self.outputs[label].argument + " /data/" + out_fn
             output_files.append(out_fn)
 
-        return command_dict, input_files, output_files
+        return [command_dict, input_files, output_files]
 
 
     async def execute_command(self, params, control_id, debug_flag):
         # update control_id status to running
         qry = trompace.mutations.controlaction.mutation_update_controlaction(control_id,
                                                                 trompace.StringConstant("ActiveActionStatus"))
-        trompace.connection.submit_query(qry, auth_required=True)
+        trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         params = await self.download_files(params)
         param_dict, input_files, output_files = self.create_command_dict(params)
@@ -450,18 +464,18 @@ class TPLapp():
                     format_=self.outputs['Output{}'.format(o+1)].mimeType,
                     language="en"
                 )
-                resp = trompace.connection.submit_query(qry, auth_required=True)
+                resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
                 identifier = resp['data']['CreateDigitalDocument']['identifier']
 
             #    link digital document to source
                 qry = trompace.mutations.controlaction.mutation_addactioninterfance_result(self.controlaction_id,
                                                                                            identifier)
-                resp = trompace.connection.submit_query(qry, auth_required=True)
+                resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         # update control_id status to finished
         qry = trompace.mutations.controlaction.mutation_update_controlaction(control_id,
                                                                     trompace.StringConstant("CompletedActionStatus"))
-        trompace.connection.submit_query(qry, auth_required=True)
+        trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ class TPLclient():
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(client_config)
         self.secure = trompace.config.config.secure
-
+        self.authenticate = self.config_parser.getboolean('auth', 'required')
         self.inputs_n = int(self.config_parser['application']['inputs_n'])
         self.params_n = int(self.config_parser['application']['params_n'])
         self.ep_id = self.config_parser['application']['ep_id']
@@ -95,7 +95,7 @@ class TPLclient():
         qry = trompace.mutations.controlaction.mutation_request_controlaction(self.ca_id,self.ep_id, inputs_list_raw,
                                                                               params_list_raw)
         if execute:
-            response = trompace.connection.submit_query(qry, auth_required=True)
+            response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
             print(response)
             return response
         else:
@@ -106,8 +106,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
 
     parser.add_argument('--client_ini',  type=str)
-    parser.add_argument('-inputs', nargs='+')
-    parser.add_argument('-params', nargs='+')
+    parser.add_argument('--inputs', nargs='+')
+    parser.add_argument('--params', nargs='+')
 
     args = parser.parse_args()
     tpl_client = TPLclient(args.client_ini)
