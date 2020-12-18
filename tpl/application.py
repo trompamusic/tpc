@@ -11,6 +11,7 @@ import os
 
 import trompace
 import trompace.config
+import trompace.constants
 import trompace.mutations.person
 import trompace.mutations.application
 import trompace.mutations.controlaction
@@ -352,11 +353,6 @@ class TPLapp():
         print(self.websocket_host)
         subscription = trompace.subscriptions.controlaction.subscription_controlaction(self.entrypoint_id)
         INIT_STR = """{"type":"connection_init","payload":{}}"""
-
-       # self.websocket_port = "ws://api-test.trompamusic.eu//graphql"
-       # async with websockets.connect(self.websocket_port, subprotocols=['graphql-ws']) as websocket:
-     #   async with websockets.connect(self.websocket_port, subprotocols=['graphql-ws']) as websocket:
-   #     self.websocket_port = "wss://api-test.trompamusic.eu/graphql"
         async with websockets.connect(self.websocket_host, subprotocols=['graphql-ws']) as websocket:
 
             await websocket.send(INIT_STR)
@@ -432,8 +428,8 @@ class TPLapp():
 
     async def execute_command(self, params, control_id, debug_flag):
         # update control_id status to running
-        qry = trompace.mutations.controlaction.mutation_update_controlaction(control_id,
-                                                                trompace.StringConstant("ActiveActionStatus"))
+        qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
+                                                                trompace.constants.ActionStatusType.ActiveActionStatus)
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         params = await self.download_files(params)
@@ -473,8 +469,10 @@ class TPLapp():
                 resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         # update control_id status to finished
-        qry = trompace.mutations.controlaction.mutation_update_controlaction(control_id,
-                                                                    trompace.StringConstant("CompletedActionStatus"))
+        qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
+                                                                trompace.constants.ActionStatusType.CompletedActionStatus)
+
+
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
 

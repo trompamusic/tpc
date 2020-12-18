@@ -1,0 +1,61 @@
+mutation {
+  CreateDigitalDocument(
+    identifier: "b6d351f0-f051-44b7-aa35-6cf93510314c"
+    contributor: "VL"
+    creator: "VL"
+    description: "a pitch performance data"
+    format: "json"
+    language: en
+    source: "https://trompa-mtg.upf.edu/data/tpl/225_enc.json"
+    subject: "Pitch contour"
+    title: "some title"
+    name: "some title"
+  ) {
+    identifier
+  }
+}
+
+mutation {
+  CreateDigitalDocument(
+    identifier: "60dedbf9-6f95-4028-8e96-91e4e0f81f56"
+    contributor: "VL"
+    creator: "Violeta de Centelles"
+    description: "a fabulus choir song"
+    format: "xml"
+    language: en
+    source: "https://s3-eu-west-1.amazonaws.com/media.voctrolabs/trompa/pieces/Violeta+de+Centelles/Requiem+Kyrie/score.xml"
+    subject: "xml file"
+    title: "Requiem Kyrie"
+    name: "some title"
+  ) {
+    identifier
+  }
+  }
+
+
+  --client_ini tpl/config/client_assessment.ini --inputs 60dedbf9-6f95-4028-8e96-91e4e0f81f56 b6d351f0-f051-44b7-aa35-6cf93510314c --params 1 28 Soprano 0.460487499990472 100
+
+  mutation {
+  RequestControlAction(
+controlAction: {potentialActionIdentifier: "ce6ba7b9-8b83-46c9-8507-9f5b155177be"
+        entryPointIdentifier: "e5205343-82f7-451d-97cb-95ccf7d487a1"
+        propertyObject: [{nodeIdentifier: "60dedbf9-6f95-4028-8e96-91e4e0f81f56"
+        potentialActionPropertyIdentifier: "0cd53d79-a435-4064-bd3d-d2f58c7535d2"
+        nodeType: DigitalDocument}, {nodeIdentifier: "b6d351f0-f051-44b7-aa35-6cf93510314c"
+        potentialActionPropertyIdentifier: "1106cb50-62be-459f-a0a9-b2138d75f06f"
+        nodeType: DigitalDocument}]
+        propertyValueObject: [{value: "1"
+        potentialActionPropertyValueSpecificationIdentifier: "781ef1b5-99aa-4cf1-899f-808b9323c185"
+        valuePattern: String}, {value: "28"
+        potentialActionPropertyValueSpecificationIdentifier: "3e5eae97-f711-4edd-a763-cf38561a5ba5"
+        valuePattern: String}, {value: "Soprano"
+        potentialActionPropertyValueSpecificationIdentifier: "e8feb7d4-dc81-4210-bcd8-2f3b5513c407"
+        valuePattern: String}, {value: "0.460487499990472"
+        potentialActionPropertyValueSpecificationIdentifier: "593beff4-87f5-411d-92ff-723bd90fe936"
+        valuePattern: String}, {value: "100"
+        potentialActionPropertyValueSpecificationIdentifier: "2bc922c8-87fc-426d-b967-67fd8160bf69"
+        valuePattern: String}]}
+) {
+identifier
+}
+}
