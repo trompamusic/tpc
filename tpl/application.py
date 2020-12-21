@@ -457,6 +457,9 @@ class TPLapp():
 
             for o in range(self.outputs_n):
                 # upload data to server
+                argument = self.outputs['Output{}'.format(o+1)].argument[2::]
+                if config_outputs_fn.has_option('tplout', argument):
+                    output_files[o] = self.config_outputs_fn['tplout'][argument]
                 output_uri = await self.upload_file(output_files[o])
 
                 # create digital document
@@ -466,7 +469,8 @@ class TPLapp():
                     creator=self.creator,
                     source=output_uri,
                     format_=self.outputs['Output{}'.format(o+1)].mimeType,
-                    language="en"
+                    language="en",
+                    description=self.outputs['Output{}'.format(o+1)].argument
                 )
                 resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
                 identifier = resp['data']['CreateDigitalDocument']['identifier']
