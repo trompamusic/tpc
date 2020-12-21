@@ -467,7 +467,7 @@ class TPLapp():
                 identifier = resp['data']['CreateDigitalDocument']['identifier']
 
             #    link digital document to source
-                qry = trompace.mutations.controlaction.mutation_addactioninterfance_result(self.controlaction_id,
+                qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(self.controlaction_id,
                                                                                            identifier)
                 resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
