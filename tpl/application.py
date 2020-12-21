@@ -485,7 +485,7 @@ if __name__ == "__main__":
    # parser.add_argument('-app', type=str, default='../../config/unique2.ini') # config of the application
 
     parser.add_argument('--client', type=str)  # config of the client file
-    parser.add_argument('--execute', type=str, default=1)  # config of the client file
+    parser.add_argument('--execute', type=int, default=1)  # config of the client file
 
     args = parser.parse_args()
 
