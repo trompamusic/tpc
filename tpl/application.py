@@ -446,6 +446,9 @@ class TPLapp():
                 os.system(docker_cmd)
             else:
                 print(docker_cmd)
+                for o in range(self.outputs_n):
+                    fp = open(self.data_path + output_files[o],'w')
+                    fp.close()
 
             for o in range(self.outputs_n):
                 # upload data to server
