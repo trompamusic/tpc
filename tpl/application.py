@@ -440,8 +440,10 @@ class TPLapp():
                 tpl.tools.decrypt_file(input_files[label], self.key, input_files[label])
         cmd_to_execute = self.command_line.format(**param_dict)
 
+        outputs_fn = str(uuid.uuid4()) + ".ini"
         if self.requires_docker:
-            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute
+            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
+                         outputs_fn
             if execute_flag:
                 os.system(docker_cmd)
             else:
@@ -449,6 +451,9 @@ class TPLapp():
                 for o in range(self.outputs_n):
                     fp = open(self.data_path + output_files[o],'w')
                     fp.close()
+
+            config_outputs_fn = configparser.ConfigParser()
+            config_outputs_fn.read(self.data_path+outputs_fn)
 
             for o in range(self.outputs_n):
                 # upload data to server
