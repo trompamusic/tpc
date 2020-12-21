@@ -459,7 +459,7 @@ class TPLapp():
                 # upload data to server
                 argument = self.outputs['Output{}'.format(o+1)].argument[2::]
                 if config_outputs_fn.has_option('tplout', argument):
-                    output_files[o] = self.config_outputs_fn['tplout'][argument]
+                    output_files[o] = config_outputs_fn['tplout'][argument]
                 output_uri = await self.upload_file(output_files[o])
 
                 # create digital document
