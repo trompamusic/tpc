@@ -443,7 +443,7 @@ class TPLapp():
 
         outputs_fn = str(uuid.uuid4()) + ".ini"
         if self.requires_docker:
-            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl-out /data/' + \
+            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
                          outputs_fn
             if execute_flag:
                 os.system(docker_cmd)
