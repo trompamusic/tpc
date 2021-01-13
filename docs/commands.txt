@@ -33,29 +33,54 @@ mutation {
   }
 
 
-  --client_ini tpl/config/client_assessment.ini --inputs 60dedbf9-6f95-4028-8e96-91e4e0f81f56 b6d351f0-f051-44b7-aa35-6cf93510314c --params 1 28 Soprano 0.460487499990472 100
+--client_ini tpl/config/client_assessment.ini --inputs 60dedbf9-6f95-4028-8e96-91e4e0f81f56 b6d351f0-f051-44b7-aa35-6cf93510314c --params 1 28 Soprano 0.460487499990472 100
 
-  mutation {
+mutation {
   RequestControlAction(
-controlAction: {potentialActionIdentifier: "ce6ba7b9-8b83-46c9-8507-9f5b155177be"
-        entryPointIdentifier: "e5205343-82f7-451d-97cb-95ccf7d487a1"
-        propertyObject: [{nodeIdentifier: "60dedbf9-6f95-4028-8e96-91e4e0f81f56"
-        potentialActionPropertyIdentifier: "0cd53d79-a435-4064-bd3d-d2f58c7535d2"
-        nodeType: DigitalDocument}, {nodeIdentifier: "b6d351f0-f051-44b7-aa35-6cf93510314c"
-        potentialActionPropertyIdentifier: "1106cb50-62be-459f-a0a9-b2138d75f06f"
-        nodeType: DigitalDocument}]
-        propertyValueObject: [{value: "1"
-        potentialActionPropertyValueSpecificationIdentifier: "781ef1b5-99aa-4cf1-899f-808b9323c185"
-        valuePattern: String}, {value: "28"
-        potentialActionPropertyValueSpecificationIdentifier: "3e5eae97-f711-4edd-a763-cf38561a5ba5"
-        valuePattern: String}, {value: "Soprano"
-        potentialActionPropertyValueSpecificationIdentifier: "e8feb7d4-dc81-4210-bcd8-2f3b5513c407"
-        valuePattern: String}, {value: "0.460487499990472"
-        potentialActionPropertyValueSpecificationIdentifier: "593beff4-87f5-411d-92ff-723bd90fe936"
-        valuePattern: String}, {value: "100"
-        potentialActionPropertyValueSpecificationIdentifier: "2bc922c8-87fc-426d-b967-67fd8160bf69"
-        valuePattern: String}]}
-) {
-identifier
-}
+    controlAction: {
+      potentialActionIdentifier: "7e2d2b14-8af2-410e-98df-d65e2e2b81be"
+      entryPointIdentifier: "6c21bbcc-6138-4867-9921-21341ad908b4"
+      propertyObject: [
+        {
+          nodeIdentifier: "60dedbf9-6f95-4028-8e96-91e4e0f81f56"
+          potentialActionPropertyIdentifier: "4209d63a-9228-4080-a213-67fa5e0e346a"
+          nodeType: DigitalDocument
+        }
+        {
+          nodeIdentifier: "b6d351f0-f051-44b7-aa35-6cf93510314c"
+          potentialActionPropertyIdentifier: "00b370c2-f02c-427d-a406-a3a456728105"
+          nodeType: DigitalDocument
+        }
+      ]
+      propertyValueObject: [
+        {
+          value: "1"
+          potentialActionPropertyValueSpecificationIdentifier: "be13b213-fb56-4488-8d5c-98ed462e1a6a"
+          valuePattern: String
+        }
+        {
+          value: "28"
+          potentialActionPropertyValueSpecificationIdentifier: "f632a964-4aff-4668-ad8c-b0f6fecae268"
+          valuePattern: String
+        }
+        {
+          value: "0.460487499990472"
+          potentialActionPropertyValueSpecificationIdentifier: "6577455c-c06d-4fa4-9a7f-0ff599d62d03"
+          valuePattern: String
+        }
+        {
+          value: "Soprano"
+          potentialActionPropertyValueSpecificationIdentifier: "661d2c67-3885-4a70-bbf7-bf33519c3165"
+          valuePattern: String
+        }
+        {
+          value: "100"
+          potentialActionPropertyValueSpecificationIdentifier: "b676bb74-8641-4bf7-88bf-bb6266744564"
+          valuePattern: String
+        }
+      ]
+    }
+  ) {
+    identifier
+  }
 }

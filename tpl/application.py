@@ -382,13 +382,14 @@ class TPLapp():
             value = params[key]
             isURL = validators.url(value)
             if isURL:
-                basename = str(uuid.uuid4())
-                local_fn = self.data_path + basename
-                await trompace.connection.download_file(value,local_fn)
-              #  params[key] = "/data/" + basename # docker filesystem
-                params[key] = basename # docker filesystem
-
-            print("ok")
+                for i in range(self.inputs_n):
+                    # download only if it's input
+                    label = "Input{}".format(i+1)
+                    if self.inputs[label].argument == key:
+                        basename = str(uuid.uuid4())
+                        local_fn = self.data_path + basename
+                        await trompace.connection.download_file(value,local_fn)
+                        params[key] = basename # docker filesystem
         return params
 
     async def upload_file(self, fn):
@@ -442,7 +443,7 @@ class TPLapp():
 
         outputs_fn = str(uuid.uuid4()) + ".ini"
         if self.requires_docker:
-            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
+            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl-out /data/' + \
                          outputs_fn
             if execute_flag:
                 os.system(docker_cmd)
@@ -476,14 +477,13 @@ class TPLapp():
                 identifier = resp['data']['CreateDigitalDocument']['identifier']
 
             #    link digital document to source
-                qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(self.controlaction_id,
+                qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,
                                                                                            identifier)
                 resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
         # update control_id status to finished
         qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                 trompace.constants.ActionStatusType.CompletedActionStatus)
-
 
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
