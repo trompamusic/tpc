@@ -346,7 +346,7 @@ class TPLapp():
             config.write(configfile)
         configfile.close()
 
-    async def listen_requests(self,execute_flag):
+    async def listen_requests(self,execute_flag=False):
     # it listen for new entry point subscriptions and executes some code
 
         self.websocket_host = trompace.config.config.websocket_host
