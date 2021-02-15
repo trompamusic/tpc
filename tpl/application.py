@@ -248,7 +248,6 @@ class TPLapp():
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.inputs[label].id)
             resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
-            print(resp)
 
         for i in range(self.params_n):
             label = 'Param{}'.format(i + 1)
@@ -346,6 +345,26 @@ class TPLapp():
             config.write(configfile)
         configfile.close()
 
+    async def download_files(self, params):
+        for key in params.keys():
+            value = params[key]
+            isURL = validators.url(value)
+            if isURL:
+                for i in range(self.inputs_n):
+                    # download only if it's input
+                    label = "Input{}".format(i + 1)
+                    if self.inputs[label].argument == key:
+                        basename = str(uuid.uuid4())
+                        local_fn = self.data_path + basename
+                        await trompace.connection.download_file(value, local_fn)
+                        params[key] = basename  # docker filesystem
+        return params
+
+    async def upload_file(self, fn):
+        self.minioclient.fput_object("tpl", fn, self.data_path + "/" + fn)
+        fileURI = self.s3_public_server + "tpl/" + fn
+        return fileURI
+
     async def listen_requests(self,execute_flag=False):
     # it listen for new entry point subscriptions and executes some code
 
@@ -377,25 +396,6 @@ class TPLapp():
                 if not is_ok:
                     raise Exception("don't have an ack yet")
 
-    async def download_files(self, params):
-        for key in params.keys():
-            value = params[key]
-            isURL = validators.url(value)
-            if isURL:
-                for i in range(self.inputs_n):
-                    # download only if it's input
-                    label = "Input{}".format(i+1)
-                    if self.inputs[label].argument == key:
-                        basename = str(uuid.uuid4())
-                        local_fn = self.data_path + basename
-                        await trompace.connection.download_file(value,local_fn)
-                        params[key] = basename # docker filesystem
-        return params
-
-    async def upload_file(self, fn):
-        self.minioclient.fput_object("tpl", fn, self.data_path + "/" + fn)
-        fileURI = self.s3_public_server + "tpl/" + fn
-        return fileURI
 
     def create_command_dict(self, params):
         # create a dict() with all the commands parameters. For input and params, these will be read from the control
@@ -427,13 +427,13 @@ class TPLapp():
         return [command_dict, input_files, output_files]
 
 
-    async def execute_command(self, params, control_id, execute_flag):
+    def execute_command(self, params, control_id, execute_flag):
         # update control_id status to running
         qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                 trompace.constants.ActionStatusType.ActiveActionStatus)
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
-        params = await self.download_files(params)
+        params = self.download_files(params)
         param_dict, input_files, output_files = self.create_command_dict(params)
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i+1)
@@ -461,7 +461,7 @@ class TPLapp():
                 argument = self.outputs['Output{}'.format(o+1)].argument[2::]
                 if config_outputs_fn.has_option('tplout', argument):
                     output_files[o] = os.path.basename(config_outputs_fn['tplout'][argument])
-                output_uri = await self.upload_file(output_files[o])
+                output_uri = self.upload_file(output_files[o])
 
                 # create digital document
                 qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
@@ -486,7 +486,6 @@ class TPLapp():
                                                                 trompace.constants.ActionStatusType.CompletedActionStatus)
 
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train LSTM Network')

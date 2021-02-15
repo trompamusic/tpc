@@ -1,13 +1,16 @@
 import trompace
 import uuid
 import os
-def execute_command(tplObj, params, control_id, execute_flag):
+import tpl.tools
+
+def execute_command(tplObj, params, control_id, execute_flag, total_jobs):
     # update control_id status to running
+    print("executing process for ", control_id)
     qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                             trompace.constants.ActionStatusType.ActiveActionStatus)
     trompace.connection.submit_query(qry, auth_required=tplObj.authenticate)
 
-    params = await tplObj.download_files(params)
+    params = tplObj.download_files(params)
     param_dict, input_files, output_files = tplObj.create_command_dict(params)
     for i in range(tplObj.inputs_n):
         label = 'Input{}'.format(i+1)
@@ -35,7 +38,7 @@ def execute_command(tplObj, params, control_id, execute_flag):
             argument = tplObj.outputs['Output{}'.format(o+1)].argument[2::]
             if config_outputs_fn.has_option('tplout', argument):
                 output_files[o] = os.path.basename(config_outputs_fn['tplout'][argument])
-            output_uri = await tplObj.upload_file(output_files[o])
+            output_uri = tplObj.upload_file(output_files[o])
 
             # create digital document
             qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
@@ -60,3 +63,5 @@ def execute_command(tplObj, params, control_id, execute_flag):
                                                             trompace.constants.ActionStatusType.CompletedActionStatus)
 
     trompace.connection.submit_query(qry, auth_required=tplObj.authenticate)
+    print("process for ", control_id, " finished")
+    total_jobs.value -= 1
