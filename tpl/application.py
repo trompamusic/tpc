@@ -427,7 +427,7 @@ class TPLapp():
         return [command_dict, input_files, output_files]
 
 
-    def execute_command(self, params, control_id, execute_flag):
+    def execute_command(self, params, control_id, execute_flag, total_jobs):
         # update control_id status to running
         qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                 trompace.constants.ActionStatusType.ActiveActionStatus)
@@ -486,6 +486,7 @@ class TPLapp():
                                                                 trompace.constants.ActionStatusType.CompletedActionStatus)
 
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        total_jobs.value -= 1
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train LSTM Network')

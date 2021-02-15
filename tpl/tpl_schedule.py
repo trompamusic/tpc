@@ -66,14 +66,13 @@ class TPLschedule():
             app2run = self.applications_map[source_ca_id]
             self.active_jobs.value += 1
             kwargs = {}
-            kwargs['tplObj'] = app2run
             kwargs['params'] = params
             kwargs['control_id'] = ca_id
             kwargs['execute_flag'] = False
             kwargs['total_jobs'] = self.active_jobs
 
-            params, control_id, execute_flag
-            p = multiprocessing.Process(target=tpl.command.execute_command, kwargs=kwargs)
+           # params, control_id, execute_flag
+       #     p = multiprocessing.Process(target=tpl.command.execute_command, kwargs=kwargs)
             p = multiprocessing.Process(target=app2run.execute_command, kwargs=kwargs)
             p.start()
 
