@@ -31,8 +31,8 @@ class TPLschedule():
         for i,f in zip(range(len(files)), files):
             self.applications_config.append(f)
             myApp = tpl.application.TPLapp(self.applications_config[i], self.ce_config)
-          #  myApp.register()
-            myApp.write_client_ini(self.client_folder+"//"+str(i)+".ini")
+         #   myApp.register()
+            myApp.write_client_ini(self.client_folder+"//"+myApp.application_name + ".ini")
 
             self.applications.append(myApp)
             self.applications_map[myApp.controlaction_id] = myApp

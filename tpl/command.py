@@ -10,7 +10,7 @@ def execute_command(tplObj, params, control_id, execute_flag, total_jobs):
                                                             trompace.constants.ActionStatusType.ActiveActionStatus)
     trompace.connection.submit_query(qry, auth_required=tplObj.authenticate)
 
-    params = tplObj.download_files(params)
+    params = tplObj.download_files2(params)
     param_dict, input_files, output_files = tplObj.create_command_dict(params)
     for i in range(tplObj.inputs_n):
         label = 'Input{}'.format(i+1)

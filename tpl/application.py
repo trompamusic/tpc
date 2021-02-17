@@ -360,6 +360,21 @@ class TPLapp():
                         params[key] = basename  # docker filesystem
         return params
 
+    def download_files2(self, params):
+        for key in params.keys():
+            value = params[key]
+            isURL = validators.url(value)
+            if isURL:
+                for i in range(self.inputs_n):
+                    # download only if it's input
+                    label = "Input{}".format(i + 1)
+                    if self.inputs[label].argument == key:
+                        basename = str(uuid.uuid4())
+                        local_fn = self.data_path + basename
+                        trompace.connection.download_file2(value, local_fn)
+                        params[key] = basename  # docker filesystem
+        return params
+
     async def upload_file(self, fn):
         self.minioclient.fput_object("tpl", fn, self.data_path + "/" + fn)
         fileURI = self.s3_public_server + "tpl/" + fn
@@ -433,7 +448,7 @@ class TPLapp():
                                                                 trompace.constants.ActionStatusType.ActiveActionStatus)
         trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
-        params = self.download_files(params)
+        params = self.download_files2(params)
         param_dict, input_files, output_files = self.create_command_dict(params)
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i+1)
@@ -443,8 +458,10 @@ class TPLapp():
 
         outputs_fn = str(uuid.uuid4()) + ".ini"
         if self.requires_docker:
-            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
-                         outputs_fn
+            # docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
+        #                 outputs_fn
+            docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute
+
             if execute_flag:
                 os.system(docker_cmd)
             else:

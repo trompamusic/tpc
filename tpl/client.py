@@ -112,6 +112,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tpl_client = TPLclient(args.client_ini)
     inputs = args.inputs
+    if inputs is None:
+        inputs = []
     params = args.params
 
     tpl_client.send_request(inputs, params, execute=False)
