@@ -78,7 +78,7 @@ class TPLclient():
             param_input = {
                 "nodeIdentifier":input_documents[i],
                 "potentialActionPropertyIdentifier":self.inputs[label].id,
-                "nodeType": trompace.StringConstant("DigitalDocument")
+                "nodeType": trompace.StringConstant(self.inputs[label].rangeIncludes)
             }
 
             inputs_list_raw.append(param_input)
@@ -112,9 +112,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tpl_client = TPLclient(args.client_ini)
     inputs = args.inputs
+    params = args.params
+
     if inputs is None:
         inputs = []
-    params = args.params
+    if params is None:
+        params = []
 
     tpl_client.send_request(inputs, params, execute=False)
 

@@ -31,7 +31,7 @@ class TPLschedule():
         for i,f in zip(range(len(files)), files):
             self.applications_config.append(f)
             myApp = tpl.application.TPLapp(self.applications_config[i], self.ce_config)
-         #   myApp.register()
+        #    myApp.register()
             myApp.write_client_ini(self.client_folder+"//"+myApp.application_name + ".ini")
 
             self.applications.append(myApp)
@@ -54,11 +54,12 @@ class TPLschedule():
         response = trompace.connection.submit_query(qry, auth_required=False)
         pending_jobs = response['data']['ControlAction']
         pending_jobs_n = len(pending_jobs)
+    #    print(pending_jobs)
         jobs_to_run = min(self.max_processes - self.active_jobs.value, pending_jobs_n)
     #    print(str(time.time()) + " : " + str(jobs_to_run) + " jobs are running")
         for j in range(jobs_to_run):
             ca_id = pending_jobs[j]['identifier']
-            print(ca_id)
+         #   print(ca_id)
             qry = trompace.queries.controlaction.query_controlaction(ca_id)
             request_data = trompace.connection.submit_query(qry, auth_required=False)
             source_ca_id = request_data['data']['ControlAction'][0]['wasDerivedFrom'][0]['identifier']
@@ -70,9 +71,8 @@ class TPLschedule():
             kwargs['control_id'] = ca_id
             kwargs['execute_flag'] = False
             kwargs['total_jobs'] = self.active_jobs
-
+        #    app2run.execute_command(params=params,control_id=ca_id, execute_flag=True, total_jobs = self.active_jobs)
            # params, control_id, execute_flag
-       #     p = multiprocessing.Process(target=tpl.command.execute_command, kwargs=kwargs)
             p = multiprocessing.Process(target=app2run.execute_command, kwargs=kwargs)
             p.start()
 
