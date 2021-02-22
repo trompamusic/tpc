@@ -1,0 +1,9 @@
+version: "3.4"
+
+services:
+
+  tpl:
+    build: .
+    volumes:
+      - ./:/code
+      - /var/run/docker.sock:/var/run/docker.sock
