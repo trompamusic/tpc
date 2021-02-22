@@ -42,7 +42,6 @@ class TPLapp():
         self.ce_config = ce_config
         self.application_config = application_config
         trompace.config.config.load(ce_config)
-       # self.secure = trompace.config.config.secure
 
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(application_config)
