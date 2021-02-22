@@ -273,9 +273,8 @@ class TPLapp():
             #     self.controlaction_id, self.params[i].id)
             resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
 
-        fp = open(self.application_config,'w')
-        self.config_parser.write(fp)
-        fp.close()
+        with open(self.application_config, 'w') as fp:
+            self.config_parser.write(fp)
 
     def write_client_ini(self, out_fn):
         ''' write a config file to store all the information needed by the client application (control action, entry
@@ -533,23 +532,23 @@ class TPLapp():
         # print('updating ca status')
         total_jobs.value -= 1
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Train LSTM Network')
-    parser.add_argument('--force',  type=int, default=0) # force==1 if we want to create a new application node even if
-    # it already exists
-    parser.add_argument('--connection', type=str) # config of the ce
-    parser.add_argument('--app', type=str) # config of the application
-   # parser.add_argument('-app', type=str, default='../../config/unique2.ini') # config of the application
 
-    parser.add_argument('--client', type=str)  # config of the client file
-    parser.add_argument('--execute', type=int, default=1)  # config of the client file
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Trompa Processing Library')
+    parser.add_argument('--force', action='store_true',
+                        help='Set if you want to create a new application node even if one exists')
+    parser.add_argument('--connection', type=str, help='CE config file', required=True)
+    parser.add_argument('--app', type=str, help='Application config file', required=True)
+
+    parser.add_argument('--client', type=str, help="config of the client file", required=True)
+    parser.add_argument('--execute', action='store_true', help='Execute the algorithm listed in the application config file')
 
     args = parser.parse_args()
 
     myApp = TPLapp(args.app, args.connection)
 
-    if myApp.registered == False or args.force == 1:
+    if not myApp.registered or args.force:
         myApp.register()
     myApp.write_client_ini(args.client)
 
-    asyncio.run(myApp.listen_requests(bool(args.execute)))
+    asyncio.run(myApp.listen_requests(args.execute))
