@@ -10,7 +10,7 @@ import tpl.command
 import time
 
 class TPLschedule():
-    def __init__(self, tpl_config):
+    def __init__(self, tpl_config, register):
         self.tpl_config = tpl_config
         self.applications = []
         self.applications_n = 0
@@ -31,9 +31,10 @@ class TPLschedule():
         for i,f in zip(range(len(files)), files):
             self.applications_config.append(f)
             myApp = tpl.application.TPLapp(self.applications_config[i], self.ce_config)
-        #    myApp.register()
-            myApp.write_client_ini(self.client_folder+"//"+myApp.application_name + ".ini")
+            if register:
+               myApp.register()
 
+            myApp.write_client_ini(self.client_folder+"//"+myApp.application_name + ".ini")
             self.applications.append(myApp)
             self.applications_map[myApp.controlaction_id] = myApp
             self.control_actions.append(myApp.controlaction_id)
@@ -87,10 +88,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TROMPA Processing Library')
 
     parser.add_argument('--tpl_config', type=str)  # config of the ce
-
+    parser.add_argument('--register', type=int, default=0)
     args = parser.parse_args()
 
-    myTPL = TPLschedule(args.tpl_config)
+    myTPL = TPLschedule(args.tpl_config, bool(args.register))
     while True:
         myTPL.poll()
         time.sleep(1)
