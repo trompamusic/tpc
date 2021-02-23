@@ -80,6 +80,8 @@ class TPLapp():
             self.entrypoint_id = self.config_parser['EntryPoint']['id']
         self.requires_docker = self.config_parser.getboolean('EntryPoint', 'requires_docker')
         self.command_line = self.config_parser['EntryPoint']['command_line']
+        self.docker_image = self.config_parser['EntryPoint']['docker_image']
+        self.docker_commands = self.config_parser['EntryPoint']['docker_commands']
 
         # load connection/secutiry information
         self.encrypt_fn = self.connection_parser.get('tplKey', 'keyFile')
@@ -445,7 +447,7 @@ class TPLapp():
             label = 'Output{}'.format(i + 1)
             out_fn = str(uuid.uuid4())
             command_dict[label] = self.outputs[label].argument + " /data/" + out_fn + "." + self.outputs[label].extension
-            output_files.append(out_fn)
+            output_files.append(out_fn + "." + self.outputs[label].extension)
 
         return [command_dict, input_files, output_files]
 
@@ -479,7 +481,8 @@ class TPLapp():
             if self.requires_docker:
                 # docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
             #                 outputs_fn
-                docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute
+                docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + self.docker_commands + " " + \
+                             self.docker_image + " " + cmd_to_execute
 
                 if execute_flag:
                     os.system(docker_cmd)
