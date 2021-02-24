@@ -1,5 +1,7 @@
 import configparser
 import asyncio
+import subprocess
+
 import websockets
 import types
 import json
@@ -30,7 +32,7 @@ import validators
 '''
 
 
-class TPLapp():
+class TPLapp:
     def __init__(self, application_config, ce_config):
 
         '''
@@ -59,28 +61,36 @@ class TPLapp():
             self.application_id = self.config_parser['Application']['id']
             self.registered = True
         else:
+            self.application_id = None
             self.registered = False
 
         self.language = self.config_parser['Application']['language']
-        self.data_path = self.config_parser['data']['path']
+        self.temporary_data_path = self.connection_parser['tpl']['temporary_storage']
+        if not os.path.isabs(self.temporary_data_path):
+            self.temporary_data_path = os.path.abspath(self.temporary_data_path)
+        self.permanent_data_path = self.connection_parser['tpl']['permanent_storage']
+        if not os.path.isabs(self.permanent_data_path):
+            self.permanent_data_path = os.path.abspath(self.permanent_data_path)
 
         self.control_action = self.config_parser['ControlAction']['name']
         self.inputs_n = int(self.config_parser['ControlAction']['num_inputs'])
         self.params_n = int(self.config_parser['ControlAction']['num_params'])
         self.outputs_n = int(self.config_parser['ControlAction']['num_outputs'])
 
+        self.controlaction_id = None
         if self.config_parser.has_option('ControlAction', 'id'):
             self.controlaction_id = self.config_parser['ControlAction']['id']
 
         self.content_type = self.config_parser['EntryPoint']['content_type']
         self.encoding_type = self.config_parser['EntryPoint']['encoding_type']
         self.action_platform = self.config_parser['EntryPoint']['action_platform']
+        self.entrypoint_id = None
         if self.config_parser.has_option('EntryPoint', 'id'):
             self.entrypoint_id = self.config_parser['EntryPoint']['id']
         self.requires_docker = self.config_parser.getboolean('EntryPoint', 'requires_docker')
+        self.docker_image = self.config_parser['EntryPoint']['docker_image']
         self.command_line = self.config_parser['EntryPoint']['command_line']
         self.docker_image = self.config_parser['EntryPoint']['docker_image']
-        self.docker_commands = self.config_parser['EntryPoint']['docker_commands']
 
         # load connection/secutiry information
         self.encrypt_fn = self.connection_parser.get('tplKey', 'keyFile')
@@ -357,7 +367,7 @@ class TPLapp():
                     label = "Input{}".format(i + 1)
                     if self.inputs[label].argument == key:
                         basename = str(uuid.uuid4())
-                        local_fn = self.data_path + basename
+                        local_fn = os.path.join(self.temporary_data_path, basename)
                         await trompace.connection.download_file_async(value, local_fn)
                         params[key] = basename  # docker filesystem
         return params
@@ -372,20 +382,20 @@ class TPLapp():
                     label = "Input{}".format(i + 1)
                     if self.inputs[label].argument == key:
                         basename = str(uuid.uuid4())
-                        local_fn = self.data_path + basename
                         _, file_extension = os.path.splitext(value)
-                        trompace.connection.download_file(value, local_fn + file_extension)
+                        local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
+                        trompace.connection.download_file(value, local_fn)
                    #     print(os.path.exists(local_fn))
                         params[key] = basename  + file_extension# docker filesystem
         return params
 
     async def upload_file_async(self, fn):
-        self.minioclient.fput_object("tpl", fn, self.data_path + "/" + fn)
+        self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
         fileURI = self.s3_public_server + "tpl/" + fn
         return fileURI
 
     def upload_file(self, fn):
-        self.minioclient.fput_object("tpl", fn, self.data_path + "/" + fn)
+        self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
         fileURI = self.s3_public_server + "tpl/" + fn
         return fileURI
     async def listen_requests(self,execute_flag=False):
@@ -431,7 +441,7 @@ class TPLapp():
                 label = 'Input{}'.format(i + 1)
                 if self.inputs[label].argument == key:
                     command_dict[label] = key + " " + "/data/" + params[key] + " "
-                    input_files[label] = self.data_path + params[key]
+                    input_files[label] = os.path.join(self.temporary_data_path, params[key])
             for i in range(self.params_n):
                 label = 'Param{}'.format(i + 1)
                 if self.params[label].argument == key:
@@ -450,8 +460,11 @@ class TPLapp():
         return [command_dict, input_files, output_files]
 
 
-    def execute_command(self, params, control_id, execute_flag, total_jobs):
+    def execute_command(self, params, control_id, execute_flag):
         # update control_id status to running
+        application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
+        os.makedirs(application_permanent_path, exist_ok=True)
+
         print("PID: ", os.getpid(), "executing ", control_id)
         try:
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
@@ -477,21 +490,23 @@ class TPLapp():
 
             outputs_fn = str(uuid.uuid4()) + ".ini"
             if self.requires_docker:
-                # docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + cmd_to_execute + ' --tpl_out /data/' + \
-            #                 outputs_fn
-                docker_cmd = "docker run -it -v " + self.data_path+":/data --rm " + self.docker_commands + " " + \
-                             self.docker_image + " " + cmd_to_execute
+                command_args = [
+                    "docker", "run", "--rm", "-it",
+                    "-v", self.temporary_data_path + ":/data", "-e", "TPL_WORKING_DIRECTORY=/data",
+                    "-v", application_permanent_path + ":/storage", "-e", "TPL_INTERNAL_DATA_DIRECTORY=/storage",
+                    self.docker_image
+                ] + cmd_to_execute.split()
 
                 if execute_flag:
-                    os.system(docker_cmd)
+                    subprocess.run(command_args)
                 else:
-                    print(docker_cmd)
+                    print(" ".join(command_args))
                     for o in range(self.outputs_n):
-                        fp = open(self.data_path + output_files[o],'w')
+                        fp = open(os.path.join(self.temporary_data_path, output_files[o]), 'w')
                         fp.close()
 
                 config_outputs_fn = configparser.ConfigParser()
-                config_outputs_fn.read(self.data_path+outputs_fn)
+                config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
            #     print('saving outputs')
 
                 for o in range(self.outputs_n):
