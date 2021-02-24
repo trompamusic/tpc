@@ -460,7 +460,7 @@ class TPLapp:
         return [command_dict, input_files, output_files]
 
 
-    def execute_command(self, params, control_id, execute_flag):
+    def execute_command(self, params, control_id, execute_flag, total_jobs):
         # update control_id status to running
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
         os.makedirs(application_permanent_path, exist_ok=True)
