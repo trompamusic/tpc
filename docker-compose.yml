@@ -7,3 +7,5 @@ services:
     volumes:
       - ./:/code
       - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - python tpl/tpl_schedule.py ---tpl_config ./config/tpl.ini
