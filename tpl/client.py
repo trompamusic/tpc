@@ -14,7 +14,6 @@ class TPLclient():
         trompace.config.config.load(client_config)
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(client_config)
-    #    self.secure = trompace.config.config.secure
         self.authenticate = self.config_parser.getboolean('auth', 'required')
         self.inputs_n = int(self.config_parser['application']['inputs_n'])
         self.params_n = int(self.config_parser['application']['params_n'])
