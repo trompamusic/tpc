@@ -19,18 +19,22 @@ class TPLschedule():
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(tpl_config)
         self.applications_folder = self.config_parser['tpl']['application_folder']
-        self.max_processes = int(self.config_parser['tpl']['max_processes'])
-        self.ce_config = self.config_parser['tpl']['ce_config']
+        self.low_processes = int(self.config_parser['processes']['low_priority'])
+        self.medium_processes = int(self.config_parser['processes']['medium_priority'])
+        self.high_processes = int(self.config_parser['processes']['high_priority'])
+        self.max_processes = int(self.config_parser['processes']['max_processes'])
         self.client_folder = self.config_parser['tpl']['client_folder']
         self.control_actions = []
-        trompace.config.config.load(self.ce_config)
+        trompace.config.config.load(self.tpl_config)
         self.applications_map = {}
 
 
         files = glob.glob(self.applications_folder + "*.ini")
         for i,f in zip(range(len(files)), files):
             self.applications_config.append(f)
-            myApp = tpl.application.TPLapp(self.applications_config[i], self.ce_config)
+            myApp = tpl.application.TPLapp(f, self.tpl_config)
+
+#            myApp = tpl.application.TPLapp(self.applications_config[i], self.ce_config)
             if register:
                myApp.register()
 

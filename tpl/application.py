@@ -43,12 +43,14 @@ class TPLapp:
         # create a CE connection
         self.ce_config = ce_config
         self.application_config = application_config
+
         trompace.config.config.load(ce_config)
 
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(application_config)
         self.connection_parser = configparser.ConfigParser()
         self.connection_parser.read(ce_config)
+
 
         self.application_name = self.config_parser['Application']['name']
         self.contributor = self.config_parser['Application']['contributor']
@@ -88,7 +90,6 @@ class TPLapp:
         if self.config_parser.has_option('EntryPoint', 'id'):
             self.entrypoint_id = self.config_parser['EntryPoint']['id']
         self.requires_docker = self.config_parser.getboolean('EntryPoint', 'requires_docker')
-        self.docker_image = self.config_parser['EntryPoint']['docker_image']
         self.command_line = self.config_parser['EntryPoint']['command_line']
         self.docker_image = self.config_parser['EntryPoint']['docker_image']
 
