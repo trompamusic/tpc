@@ -33,7 +33,7 @@ import validators
 
 
 class TPLapp:
-    def __init__(self, application_config, ce_config):
+    def __init__(self, application_config, ce_config, tpl_params):
 
         '''
         the class constructor reads the application configuration file and the ce configuration file, stores all the
@@ -67,12 +67,10 @@ class TPLapp:
             self.registered = False
 
         self.language = self.config_parser['Application']['language']
-        self.temporary_data_path = self.connection_parser['tpl']['temporary_storage']
-        if not os.path.isabs(self.temporary_data_path):
-            self.temporary_data_path = os.path.abspath(self.temporary_data_path)
-        self.permanent_data_path = self.connection_parser['tpl']['permanent_storage']
-        if not os.path.isabs(self.permanent_data_path):
-            self.permanent_data_path = os.path.abspath(self.permanent_data_path)
+        self.temporary_data_path = tpl_params['temporary_data_path']
+        self.permanent_data_path = tpl_params['permanent_data_path']
+
+
 
         self.control_action = self.config_parser['ControlAction']['name']
         self.inputs_n = int(self.config_parser['ControlAction']['num_inputs'])
