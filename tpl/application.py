@@ -98,7 +98,7 @@ class TPLapp:
         self.s3_secret = self.connection_parser.get('s3', 'secret_key')
         self.s3_server = self.connection_parser.get('s3', 'server')
         self.s3_public_server = self.connection_parser.get('s3', 'public_server')
-        self.authenticate = self.connection_parser.getboolean('auth','required')
+
         #minio client for uploading results
         self.minioclient = minio.Minio(
             self.s3_server,
@@ -207,14 +207,14 @@ class TPLapp:
             description=self.description,
             language=self.language)
 
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         self.application_id = response['data']['CreateSoftwareApplication']['identifier']
         self.config_parser['Application']['id'] = self.application_id
 
         qry = trompace.mutations.controlaction.mutation_create_controlaction(name=self.control_action,
                                                                              description=self.description)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
         self.controlaction_id = response['data']['CreateControlAction']['identifier']
         self.config_parser['ControlAction']['id'] = self.controlaction_id
 
@@ -230,19 +230,19 @@ class TPLapp:
             contentType=[self.content_type],
             encodingType=[self.encoding_type])
 
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
         self.entrypoint_id = response['data']['CreateEntryPoint']['identifier']
         self.config_parser['EntryPoint']['id'] = self.entrypoint_id
 
         qry = trompace.mutations.application.mutation_add_entrypoint_application(
             application_id=self.application_id,
             entrypoint_id=self.entrypoint_id)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         qry = trompace.mutations.controlaction.mutation_add_entrypoint_controlaction(
             entrypoint_id=self.entrypoint_id,
             controlaction_id=self.controlaction_id)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
@@ -252,13 +252,13 @@ class TPLapp:
                 description=self.inputs[label].description,
                 rangeIncludes=[self.inputs[label].rangeIncludes])
 
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
             self.inputs[label].id = resp['data']['CreateProperty']['identifier']
             self.config_parser['Input'+str(i+1)]['id'] = self.inputs[label].id
 
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.inputs[label].id)
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
 
         for i in range(self.params_n):
             label = 'Param{}'.format(i + 1)
@@ -273,7 +273,7 @@ class TPLapp:
                 valuePattern=self.params[label].valuePattern,
                 valueRequired=self.params[label].valueRequired)
 
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
             self.params[label].id = resp['data']['CreatePropertyValueSpecification']['identifier']
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.params[label].id)
@@ -281,7 +281,7 @@ class TPLapp:
 
             # qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
             #     self.controlaction_id, self.params[i].id)
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
 
         with open(self.application_config, 'w') as fp:
             self.config_parser.write(fp)
@@ -468,7 +468,7 @@ class TPLapp:
         try:
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                     trompace.constants.ActionStatusType.ActiveActionStatus)
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            trompace.connection.submit_query(qry, auth_required=True)
          #   print('updating ca status')
             params = self.download_files(params)
          #   print('downloaded file')
@@ -525,25 +525,24 @@ class TPLapp:
                         language="en",
                         description=self.outputs['Output{}'.format(o+1)].argument
                     )
-                    resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+                    resp = trompace.connection.submit_query(qry, auth_required=True)
                     identifier = resp['data']['CreateDigitalDocument']['identifier']
 
                 #    link digital document to source
                     qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,
                                                                                                identifier)
-                    resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+                    resp = trompace.connection.submit_query(qry, auth_required=True)
 
             # update control_id status to finished
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                     trompace.constants.ActionStatusType.CompletedActionStatus)
 
-
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            trompace.connection.submit_query(qry, auth_required=True)
         except:
             print("Error:", sys.exc_info()[0], " for ca_id", control_id)
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                     trompace.constants.ActionStatusType.FailedActionStatus)
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            trompace.connection.submit_query(qry, auth_required=True)
 
         # print('updating ca status')
         total_jobs.value -= 1
