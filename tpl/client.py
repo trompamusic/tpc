@@ -14,7 +14,6 @@ class TPLclient():
         trompace.config.config.load(client_config)
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(client_config)
-        self.secure = trompace.config.config.secure
         self.authenticate = self.config_parser.getboolean('auth', 'required')
         self.inputs_n = int(self.config_parser['application']['inputs_n'])
         self.params_n = int(self.config_parser['application']['params_n'])
@@ -78,7 +77,7 @@ class TPLclient():
             param_input = {
                 "nodeIdentifier":input_documents[i],
                 "potentialActionPropertyIdentifier":self.inputs[label].id,
-                "nodeType": trompace.StringConstant("DigitalDocument")
+                "nodeType": trompace.StringConstant(self.inputs[label].rangeIncludes)
             }
 
             inputs_list_raw.append(param_input)
@@ -113,6 +112,11 @@ if __name__ == "__main__":
     tpl_client = TPLclient(args.client_ini)
     inputs = args.inputs
     params = args.params
+
+    if inputs is None:
+        inputs = []
+    if params is None:
+        params = []
 
     tpl_client.send_request(inputs, params, execute=False)
 
