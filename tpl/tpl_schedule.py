@@ -86,8 +86,9 @@ class TPLschedule():
             qry = trompace.queries.controlaction.query_controlaction(ca_id)
             request_data = trompace.connection.submit_query(qry, auth_required=False)
             source_ca_id = request_data['data']['ControlAction'][0]['wasDerivedFrom'][0]['identifier']
-            params = tpl.tools.get_ca_params(request_data)
             app2run = self.applications_map[source_ca_id]
+            params = tpl.tools.get_ca_params(request_data, app2run)
+
             self.active_jobs.value += 1
             kwargs = {}
             kwargs['params'] = params

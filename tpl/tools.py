@@ -14,16 +14,34 @@ def get_sub_dict(query):
     return json.dumps(message)
 
 
-def get_ca_params(ca_response):
+def get_ca_params(ca_response, application):
     ret_val = dict()
     objects = ca_response['data']['ControlAction'][0]['object']
     for obj in objects:
+        from_identifier = obj['wasDerivedFrom'][0]['identifier']
+        label = application.identifier_to_label[from_identifier]
+        field = application.params[label].field
+
         if obj['nodeValue'] is not None:
-            ret_val[obj['name']] = obj['nodeValue']['source']
+            if field == "identifier":
+                ret_val[label] = obj[field]
+            else:
+                ret_val[label] = obj['nodeValue'][field]
+
         elif obj['value'] is not None:
-            ret_val[obj['name']] = obj['value']
-        else:
-            ret_val[obj['name']] = None
+            if field == "identifier":
+                ret_val[label] = obj[field]
+            else:
+                ret_val[label] = obj[field]
+
+        # if obj['nodeValue'] is not None:
+        #     ret_val[label] = obj
+        #     ret_val[obj['name']] = obj['nodeValue']['source']
+        # elif obj['value'] is not None:
+        #     ret_val[label] = obj
+        #     ret_val[obj['name']] = obj['value']
+        # else:
+        #     ret_val[obj['name']] = None
 
     return ret_val
 

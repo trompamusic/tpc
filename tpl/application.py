@@ -113,7 +113,7 @@ class TPLapp:
         self.inputs = {}
         self.params = {}
         self.outputs = {}
-        self.command_dictionary = {}
+        self.identifier_to_label = {}
 
         ''' Read the inputs '''
         for i in range(self.inputs_n):
@@ -132,9 +132,11 @@ class TPLapp:
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
             input_property.argument = input_property.name
             input_property.encrypted = property.getboolean('encrypted')
+            input_property.field = property['field']
             self.inputs[label] = input_property
+            self.params[label] = input_property
             self.inputs[input_property.title] = label
-            self.command_dictionary[label] = ""
+            self.identifier_to_label[input_property.id] = label
 
         ''' Read the params '''
         for i in range(self.params_n):
@@ -159,8 +161,10 @@ class TPLapp:
                 param_property.id = self.config_parser['Param{}'.format(i + 1)]['id']
             param_property.encrypted = property.getboolean('encrypted')
             param_property.argument = param_property.valueName
+            param_property.field = property['field']
+
             self.params[label] = param_property
-            self.command_dictionary[label] = ""
+            self.identifier_to_label[param_property.id] = label
 
         ''' Read the outputs '''
         for i in range(self.outputs_n):
@@ -357,35 +361,31 @@ class TPLapp:
         configfile.close()
 
     async def download_files_async(self, params):
-        for key in params.keys():
-            value = params[key]
-            isURL = validators.url(value)
-            if isURL:
-                for i in range(self.inputs_n):
-                    # download only if it's input
-                    label = "Input{}".format(i + 1)
-                    if self.inputs[label].argument == key:
-                        basename = str(uuid.uuid4())
-                        local_fn = os.path.join(self.temporary_data_path, basename)
-                        await trompace.connection.download_file_async(value, local_fn)
-                        params[key] = basename  # docker filesystem
+        for i in range(self.inputs_n):
+            # download only if it's input
+            label = "Input{}".format(i + 1)
+            if self.inputs[label].field == 'source':
+                source = params[label]
+                basename = str(uuid.uuid4())
+                _, file_extension = os.path.splitext(source)
+                local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
+                trompace.connection.download_file_async(source, local_fn)
+                #     print(os.path.exists(local_fn))
+                params[label] = basename + file_extension  # docker filesystem
         return params
 
     def download_files(self, params):
-        for key in params.keys():
-            value = params[key]
-            isURL = validators.url(value)
-            if isURL:
-                for i in range(self.inputs_n):
-                    # download only if it's input
-                    label = "Input{}".format(i + 1)
-                    if self.inputs[label].argument == key:
-                        basename = str(uuid.uuid4())
-                        _, file_extension = os.path.splitext(value)
-                        local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
-                        trompace.connection.download_file(value, local_fn)
-                   #     print(os.path.exists(local_fn))
-                        params[key] = basename  + file_extension# docker filesystem
+        for i in range(self.inputs_n):
+            # download only if it's input
+            label = "Input{}".format(i + 1)
+            if self.inputs[label].field == 'source':
+                source = params[label]
+                basename = str(uuid.uuid4())
+                _, file_extension = os.path.splitext(source)
+                local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
+                trompace.connection.download_file(source, local_fn)
+                #     print(os.path.exists(local_fn))
+                params[label] = basename + file_extension  # docker filesystem
         return params
 
     async def upload_file_async(self, fn):
@@ -438,8 +438,8 @@ class TPLapp:
         for key in params.keys():
             for i in range(self.inputs_n):
                 label = 'Input{}'.format(i + 1)
-                if self.inputs[label].argument == key:
-                    command_dict[label] = key + " " + "/data/" + params[key] + " "
+                if self.inputs[label].field == 'source':
+                    command_dict[label] = "/data/" + params[key] + " "
                     input_files[label] = os.path.join(self.temporary_data_path, params[key])
             for i in range(self.params_n):
                 label = 'Param{}'.format(i + 1)
