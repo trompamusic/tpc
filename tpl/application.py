@@ -130,13 +130,14 @@ class TPLapp:
             input_property.rangeIncludes = trompace.StringConstant(property['rangeIncludes'])
             if self.config_parser.has_option('Input{}'.format(i + 1), 'id'):
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
+                self.identifier_to_label[input_property.id] = label
+
             input_property.argument = input_property.name
             input_property.encrypted = property.getboolean('encrypted')
             input_property.field = property['field']
             self.inputs[label] = input_property
             self.params[label] = input_property
             self.inputs[input_property.title] = label
-            self.identifier_to_label[input_property.id] = label
 
         ''' Read the params '''
         for i in range(self.params_n):
@@ -159,12 +160,13 @@ class TPLapp:
             param_property.valueRequired = property.getboolean('valuerequired')
             if self.config_parser.has_option('Param{}'.format(i + 1), 'id'):
                 param_property.id = self.config_parser['Param{}'.format(i + 1)]['id']
+                self.identifier_to_label[param_property.id] = label
+
             param_property.encrypted = property.getboolean('encrypted')
             param_property.argument = param_property.valueName
             param_property.field = property['field']
 
             self.params[label] = param_property
-            self.identifier_to_label[param_property.id] = label
 
         ''' Read the outputs '''
         for i in range(self.outputs_n):
@@ -263,6 +265,7 @@ class TPLapp:
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.inputs[label].id)
             resp = trompace.connection.submit_query(qry, auth_required=True)
+            self.identifier_to_label[self.inputs[label].id] = label
 
         for i in range(self.params_n):
             label = 'Param{}'.format(i + 1)
@@ -286,6 +289,7 @@ class TPLapp:
             # qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
             #     self.controlaction_id, self.params[i].id)
             resp = trompace.connection.submit_query(qry, auth_required=True)
+            self.identifier_to_label[self.params[label].id] = label
 
         with open(self.application_config, 'w') as fp:
             self.config_parser.write(fp)
@@ -453,8 +457,8 @@ class TPLapp:
         for i in range(self.outputs_n):
             label = 'Output{}'.format(i + 1)
             out_fn = str(uuid.uuid4())
-            command_dict[label] = self.outputs[label].argument + " /data/" + out_fn + "." + self.outputs[label].extension
-            output_files.append(out_fn + "." + self.outputs[label].extension)
+            command_dict[label] = " /data/" + out_fn + "." + self.outputs[label].extension
+            output_files.append(os.path.join(self.temporary_data_path, out_fn + "." + self.outputs[label].extension))
 
         return [command_dict, input_files, output_files]
 
@@ -501,7 +505,7 @@ class TPLapp:
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
-                        fp = open(os.path.join(self.temporary_data_path, output_files[o]), 'w')
+                        fp = open(output_files[o], 'w')
                         fp.close()
 
                 config_outputs_fn = configparser.ConfigParser()
