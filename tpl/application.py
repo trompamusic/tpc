@@ -11,6 +11,9 @@ import minio
 import tpl.tools
 import os
 import sys
+import requests
+import urllib
+
 import trompace
 import trompace.config
 import trompace.constants
@@ -27,6 +30,8 @@ import trompace.exceptions
 import trompace.subscriptions.controlaction
 import trompace.queries.controlaction
 import tpl.tools
+import trompasolid.client
+
 import validators
 '''Script of the TROMPA Processing Library class.
 '''
@@ -387,7 +392,27 @@ class TPLapp:
                 basename = str(uuid.uuid4())
                 _, file_extension = os.path.splitext(source)
                 local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
-                trompace.connection.download_file(source, local_fn)
+
+           #     trompace.connection.download_file(source, local_fn)
+
+                if tpl.tools.check_if_uri_is_solid_pod(source):
+                    tpl.tools.download_from_solid_pod(source)
+                else:
+                    trompace.connection.download_file(source, local_fn)
+              #   try:
+              #
+              #   except requests.exceptions.HTTPError:
+              #       tpl.tools.download_from_solid_pod(source)
+              # #      trompace.connection.download_file(source, local_fn)
+              #   else:
+              #       print("Unexpected error:", sys.exc_info()[0])
+
+                # except Exception as e:
+                #     print(e)
+                #     trompace.connection.download_file(source, local_fn)
+                # else:
+                #     print("Unexpected error:", sys.exc_info()[0])
+                #     print("could not download file")
                 #     print(os.path.exists(local_fn))
                 params[label] = basename + file_extension  # docker filesystem
         return params
@@ -397,10 +422,40 @@ class TPLapp:
         fileURI = self.s3_public_server + "tpl/" + fn
         return fileURI
 
-    def upload_file(self, fn):
-        self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
-        fileURI = self.s3_public_server + "tpl/" + fn
+    def upload_file(self, server_url, fn):
+        if server_url == "TPL":
+            self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
+            fileURI = self.s3_public_server + "tpl/" + fn
+        elif tpl.tools.check_if_uri_is_solid_pod(server_url):
+            fileURI = ""
+
         return fileURI
+
+    def upload_solidpod(self, solid_pod_uri):
+        solid_client = trompasolid.client
+        solid_client.init_redis()
+
+        bearer = solid_client.get_bearer_for_user("https://trompa-solid.upf.edu",
+                                            "https://agkiokas.trompa-solid.upf.edu/profile/card#me")
+
+        r = requests.put("https://agkiokas.trompa-solid.upf.edu/testfile.txt",
+                         data="this is the contents to add to the file",
+                         headers={"authorization": "Bearer %s" % bearer, "content-type": "text/plain"})
+
+    def download_from_solid_pod(self, uri, out_filename):
+
+        solid_client = trompasolid.client
+        solid_client.init_redis()
+        urlParseResult = urllib.parse.urlparse(uri)
+        pos = urlParseResult.netloc.find(".")
+
+        host = urlParseResult.scheme + "://" + urlParseResult.netloc[pos + 1::]
+
+        bearer = solid_client.get_bearer_for_user(host, "https://agkiokas2.trompa-solid.upf.edu/profile/card#me")
+
+        r = requests.get(uri, headers={"authorization": "Bearer %s" % bearer})
+
+        return r.content
     async def listen_requests(self,execute_flag=False):
     # it listen for new entry point subscriptions and executes some code
 
@@ -439,19 +494,39 @@ class TPLapp:
 
         command_dict = {}
         input_files = {}
-        for key in params.keys():
-            for i in range(self.inputs_n):
-                label = 'Input{}'.format(i + 1)
-                if self.inputs[label].field == 'source':
-                    command_dict[label] = "/data/" + params[key] + " "
-                    input_files[label] = os.path.join(self.temporary_data_path, params[key])
-            for i in range(self.params_n):
-                label = 'Param{}'.format(i + 1)
-                if self.params[label].argument == key:
-                    if params[key] in self.constants.keys():
-                        command_dict[label] = key + " " + self.constants[params[key]] + " "
-                    else:
-                        command_dict[label] = key + " " + params[key] + " "
+
+        for i in range(self.inputs_n):
+            label = 'Input{}'.format(i + 1)
+            if self.inputs[label].field == 'source':
+                command_dict[label] = "/data/" + params[label] + " "
+                input_files[label] = os.path.join(self.temporary_data_path, params[label])
+
+        for i in range(self.params_n):
+            label = 'Param{}'.format(i + 1)
+            command_dict[label] = params[label]
+            if params[label] in self.constants.keys():
+                params[label] = self.constants[params[label]]
+
+                # if self.params[label].argument == key:
+                #     if params[key] in self.constants.keys():
+                #         command_dict[label] = key + " " + self.constants[params[key]] + " "
+                #     else:
+                #         command_dict[label] = key + " " + params[key] + " "
+
+        # for i in range(self.params_n):
+        #     label = 'Param{}'.format(i + 1)
+        #     if self.params[label].argument == key:
+        #         if params[key] in self.constants.keys():
+        #             command_dict[label] = key + " " + self.constants[params[key]] + " "
+        #         else:
+        #             command_dict[label] = key + " " + params[key] + " "
+        # for key in params.keys():
+        #     for i in range(self.inputs_n):
+        #         label = 'Input{}'.format(i + 1)
+        #         if self.inputs[label].field == 'source':
+        #             command_dict[label] = "/data/" + params[key] + " "
+        #             input_files[label] = os.path.join(self.temporary_data_path, params[key])
+
 
         output_files = []
         for i in range(self.outputs_n):
@@ -465,6 +540,11 @@ class TPLapp:
 
     def execute_command(self, params, control_id, execute_flag, total_jobs):
         # update control_id status to running
+        xxx=0
+        print("authentication: ", params['Param'+str(self.params_n)])
+       # authentication_data = json.loads(params['Param'+str(self.params_n-1)])
+
+
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
         os.makedirs(application_permanent_path, exist_ok=True)
 
@@ -480,6 +560,8 @@ class TPLapp:
             param_dict, input_files, output_files = self.create_command_dict(params)
          #   print('updated params')
 
+            output_storages = param_dict['Param'+str(self.params_n)]
+            output_storages = output_storages.split(',')
             for i in range(self.inputs_n):
                 label = 'Input{}'.format(i+1)
                 if self.inputs[label].encrypted:

@@ -3,6 +3,10 @@ import cryptography.fernet
 import trompace
 import validators
 import uuid
+import trompasolid
+import requests
+import urllib.parse
+import os
 
 def get_sub_dict(query):
     payload = {"variables": {},
@@ -78,3 +82,13 @@ def generate_key(key_fn):
     fp = open(key_fn, 'wb')
     fp.write(key)
     fp.close()
+
+def check_if_uri_is_solid_pod(uri):
+    if "solid" in uri:
+        return True
+    else:
+        return False
+
+
+
+
