@@ -172,6 +172,8 @@ class TPLapp:
             param_property.field = property['field']
 
             self.params[label] = param_property
+            if i == self.params_n - 1:
+                self.params['OutputParameters'] = self.params[label]
 
         ''' Read the outputs '''
         for i in range(self.outputs_n):
@@ -393,10 +395,8 @@ class TPLapp:
                 _, file_extension = os.path.splitext(source)
                 local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
 
-           #     trompace.connection.download_file(source, local_fn)
-
                 if tpl.tools.check_if_uri_is_solid_pod(source):
-                    tpl.tools.download_from_solid_pod(source)
+                    self.download_from_solid_pod(source, local_fn)
                 else:
                     trompace.connection.download_file(source, local_fn)
               #   try:
@@ -422,25 +422,32 @@ class TPLapp:
         fileURI = self.s3_public_server + "tpl/" + fn
         return fileURI
 
-    def upload_file(self, server_url, fn):
-        if server_url == "TPL":
-            self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
-            fileURI = self.s3_public_server + "tpl/" + fn
-        elif tpl.tools.check_if_uri_is_solid_pod(server_url):
-            fileURI = ""
+    def upload_file(self, fn):
+        self.minioclient.fput_object("tpl", os.path.basename(fn), fn)
+        fileURI = self.s3_public_server + "tpl/" + os.path.basename(fn)
 
         return fileURI
 
-    def upload_solidpod(self, solid_pod_uri):
+    def upload_solidpod(self, solidpod_info, fn):
+
         solid_client = trompasolid.client
         solid_client.init_redis()
 
-        bearer = solid_client.get_bearer_for_user("https://trompa-solid.upf.edu",
-                                            "https://agkiokas.trompa-solid.upf.edu/profile/card#me")
+        bearer = solid_client.get_bearer_for_user(solidpod_info['server'], solidpod_info['user'])
+        output_uri = solidpod_info['folder'] + "/" + os.path.basename(fn)
+        fp = open(fn, 'rb')
+        data = fp.read()
+        fp.close()
+        headers = {
+            "authorization": "Bearer %s" % bearer,
+            "Content-Type": "application/binary"
+        }
+      #  test_response = requests.post(solidpod_info['folder'], files={os.path.basename(fn): fp}, headers={"authorization": "Bearer %s" % bearer})
 
-        r = requests.put("https://agkiokas.trompa-solid.upf.edu/testfile.txt",
-                         data="this is the contents to add to the file",
-                         headers={"authorization": "Bearer %s" % bearer, "content-type": "text/plain"})
+      #  r = requests.put(output_uri, data=data, headers=headers)
+        response = requests.put(output_uri, data=data, headers=headers)
+
+        return output_uri
 
     def download_from_solid_pod(self, uri, out_filename):
 
@@ -455,7 +462,10 @@ class TPLapp:
 
         r = requests.get(uri, headers={"authorization": "Bearer %s" % bearer})
 
-        return r.content
+        fp = open(out_filename, 'bw')
+        fp.write(r.content)
+        fp.close()
+
     async def listen_requests(self,execute_flag=False):
     # it listen for new entry point subscriptions and executes some code
 
@@ -500,10 +510,12 @@ class TPLapp:
             if self.inputs[label].field == 'source':
                 command_dict[label] = "/data/" + params[label] + " "
                 input_files[label] = os.path.join(self.temporary_data_path, params[label])
+            else:
+                command_dict[label] = params[label]
 
         for i in range(self.params_n):
             label = 'Param{}'.format(i + 1)
-            command_dict[label] = params[label]
+            command_dict[label] = "\"" + params[label] + "\""
             if params[label] in self.constants.keys():
                 params[label] = self.constants[params[label]]
 
@@ -555,13 +567,8 @@ class TPLapp:
             trompace.connection.submit_query(qry, auth_required=True)
          #   print('updating ca status')
             params = self.download_files(params)
-         #   print('downloaded file')
-
             param_dict, input_files, output_files = self.create_command_dict(params)
-         #   print('updated params')
 
-            output_storages = param_dict['Param'+str(self.params_n)]
-            output_storages = output_storages.split(',')
             for i in range(self.inputs_n):
                 label = 'Input{}'.format(i+1)
                 if self.inputs[label].encrypted:
@@ -571,7 +578,6 @@ class TPLapp:
                         print("Unexpected error:", sys.exc_info()[0])
 
             cmd_to_execute = self.command_line.format(**param_dict)
-         #   print('created command')
 
             outputs_fn = str(uuid.uuid4()) + ".ini"
             if self.requires_docker:
@@ -592,14 +598,20 @@ class TPLapp:
 
                 config_outputs_fn = configparser.ConfigParser()
                 config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
-           #     print('saving outputs')
+
+                storage_details = param_dict['Param' + str(self.params_n)].replace("\"","")
+                output_storages = tpl.tools.get_output_login_information(storage_details, self.key)
 
                 for o in range(self.outputs_n):
                     # upload data to server
                     argument = self.outputs['Output{}'.format(o+1)].argument[2::]
                     if config_outputs_fn.has_option('tplout', argument):
                         output_files[o] = os.path.basename(config_outputs_fn['tplout'][argument])
-                    output_uri = self.upload_file(output_files[o])
+
+                    if output_storages[o]['type'] == 'solidpod':
+                        output_uri = self.upload_solidpod(output_storages[o],output_files[o])
+                    elif output_storages[o]['type'] == 's3':
+                        output_uri = self.upload_file(output_files[o])
 
                     # create digital document
                     qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(

@@ -22,3 +22,11 @@ The POC algorithm does the following: it copies Input1 and Input 2 to Outputs 1 
 - poc.ini: the configuration file in order to load the algorithm to the TPL
 - Dockerfile: a docker file containing the poc.py algorithm
 
+
+### Example of server information file
+
+Server information must be passed as an encrypted string. In this string, each line contains the information for each output.
+
+solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private
+solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private
+s3;

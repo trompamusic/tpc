@@ -30,7 +30,10 @@ def get_ca_params(ca_response, application):
             if field == "identifier":
                 ret_val[label] = obj[field]
             else:
-                ret_val[label] = obj['nodeValue'][field]
+                if field == "sourceuri":
+                    ret_val[label] = obj['nodeValue']["source"]
+                else:
+                    ret_val[label] = obj['nodeValue'][field]
 
         elif obj['value'] is not None:
             if field == "identifier":
@@ -89,6 +92,22 @@ def check_if_uri_is_solid_pod(uri):
     else:
         return False
 
-
+def get_output_login_information(message, key):
+    fernet = cryptography.fernet.Fernet(key)
+    strmessage = fernet.decrypt(message.encode()).decode()
+    lines = strmessage.splitlines()
+    outputs = []
+    for line in lines:
+        parts = line.split(';')
+        output = {}
+        if parts[0] == 'solidpod':
+            output['type'] = 'solidpod'
+            output['server'] = parts[1]
+            output['user'] = parts[2]
+            output['folder'] = parts[3]
+        elif parts[0] == 's3':
+            output['type'] = 's3'
+        outputs.append(output)
+    return outputs
 
 
