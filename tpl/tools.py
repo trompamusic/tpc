@@ -31,7 +31,12 @@ def get_ca_params(ca_response, application):
                 ret_val[label] = obj[field]
             else:
                 if field == "sourceuri":
-                    ret_val[label] = obj['nodeValue']["source"]
+                    if 'source' in obj['nodeValue'].keys():
+                        ret_val[label] = obj['nodeValue']['source']
+                    elif 'contentUrl' in obj['nodeValue'].keys():
+                        ret_val[label] = obj['nodeValue']['contentUrl']
+                    else:
+                        raise NameError('Did not find a valid URL')
                 else:
                     ret_val[label] = obj['nodeValue'][field]
 
@@ -80,6 +85,16 @@ def decrypt_file(fn, key, out_fn):
         f.write(decrypted)
     f.close()
 
+def decrypt_string(str, key):
+    fernet = cryptography.fernet.Fernet(key)
+    decrypted = fernet.decrypt(str.encode())
+    return decrypted.decode()
+
+def ecrypt_string(str, key):
+    fernet = cryptography.fernet.Fernet(key)
+    ecrypted = fernet.encrypt(str.encode())
+    return ecrypted.decode()
+
 def generate_key(key_fn):
     key = cryptography.fernet.Fernet.generate_key()
     fp = open(key_fn, 'wb')
@@ -91,6 +106,10 @@ def check_if_uri_is_solid_pod(uri):
         return True
     else:
         return False
+
+def check_if_string_is_valid_uri(uri):
+    valid = validators.url(uri)
+    return valid
 
 def get_output_login_information(message, key):
     fernet = cryptography.fernet.Fernet(key)
@@ -105,8 +124,10 @@ def get_output_login_information(message, key):
             output['server'] = parts[1]
             output['user'] = parts[2]
             output['folder'] = parts[3]
+            output['encrypted'] = bool(int(parts[4]))
         elif parts[0] == 's3':
             output['type'] = 's3'
+            output['encrypted'] = bool(int(parts[1]))
         outputs.append(output)
     return outputs
 

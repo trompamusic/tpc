@@ -81,6 +81,7 @@ class TPLapp:
         self.inputs_n = int(self.config_parser['ControlAction']['num_inputs'])
         self.params_n = int(self.config_parser['ControlAction']['num_params'])
         self.outputs_n = int(self.config_parser['ControlAction']['num_outputs'])
+        self.priotity = int(self.config_parser['ControlAction']['priority'])
 
         self.controlaction_id = None
         if self.config_parser.has_option('ControlAction', 'id'):
@@ -95,6 +96,7 @@ class TPLapp:
         self.requires_docker = self.config_parser.getboolean('EntryPoint', 'requires_docker')
         self.command_line = self.config_parser['EntryPoint']['command_line']
         self.docker_image = self.config_parser['EntryPoint']['docker_image']
+        self.docker_commands = self.config_parser['EntryPoint']['docker_commands']
 
         # load connection/secutiry information
         self.encrypt_fn = self.connection_parser.get('tplKey', 'keyFile')
@@ -181,6 +183,7 @@ class TPLapp:
             property = self.config_parser[label]
             check_pro = ['name', 'description', 'defaultValue', 'valuemaxlength', 'valueminlength', 'multiplevalues',
                          'valuename', 'valuepattern', 'valuerequired']
+
             if not all(x in property.keys() for x in check_pro):
                 missing_fields = [x for x in check_pro if x not in property.keys()]
                 raise trompace.exceptions.ConfigRequirementException(missing_fields)
@@ -375,7 +378,7 @@ class TPLapp:
         for i in range(self.inputs_n):
             # download only if it's input
             label = "Input{}".format(i + 1)
-            if self.inputs[label].field == 'source':
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentURL":
                 source = params[label]
                 basename = str(uuid.uuid4())
                 _, file_extension = os.path.splitext(source)
@@ -389,16 +392,24 @@ class TPLapp:
         for i in range(self.inputs_n):
             # download only if it's input
             label = "Input{}".format(i + 1)
-            if self.inputs[label].field == 'source':
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
                 source = params[label]
                 basename = str(uuid.uuid4())
+
+                if not tpl.tools.check_if_string_is_valid_uri(source):
+                    source = tpl.tools.decrypt_string(source, self.key)
+                    if not tpl.tools.check_if_string_is_valid_uri(source):
+                        raise NameError('Invalid Source URI for ', params[label])
                 _, file_extension = os.path.splitext(source)
                 local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
 
                 if tpl.tools.check_if_uri_is_solid_pod(source):
                     self.download_from_solid_pod(source, local_fn)
-                else:
+                elif tpl.tools.check_if_string_is_valid_uri(source):
                     trompace.connection.download_file(source, local_fn)
+                else:
+                    print("Not a valid URL")
+
               #   try:
               #
               #   except requests.exceptions.HTTPError:
@@ -459,9 +470,10 @@ class TPLapp:
         host = urlParseResult.scheme + "://" + urlParseResult.netloc[pos + 1::]
 
         bearer = solid_client.get_bearer_for_user(host, "https://agkiokas2.trompa-solid.upf.edu/profile/card#me")
+        bearer = solid_client.get_bearer_for_user(host, "https://tpl-alignment-test.trompa-solid.upf.edu/profile/card#me")
 
         r = requests.get(uri, headers={"authorization": "Bearer %s" % bearer})
-
+        r.raise_for_status()
         fp = open(out_filename, 'bw')
         fp.write(r.content)
         fp.close()
@@ -507,7 +519,7 @@ class TPLapp:
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
-            if self.inputs[label].field == 'source':
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
                 command_dict[label] = "/data/" + params[label] + " "
                 input_files[label] = os.path.join(self.temporary_data_path, params[label])
             else:
@@ -556,15 +568,11 @@ class TPLapp:
         print("authentication: ", params['Param'+str(self.params_n)])
        # authentication_data = json.loads(params['Param'+str(self.params_n-1)])
 
-
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
         os.makedirs(application_permanent_path, exist_ok=True)
 
         print("PID: ", os.getpid(), "executing ", control_id)
         try:
-            qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
-                                                                    trompace.constants.ActionStatusType.ActiveActionStatus)
-            trompace.connection.submit_query(qry, auth_required=True)
          #   print('updating ca status')
             params = self.download_files(params)
             param_dict, input_files, output_files = self.create_command_dict(params)
@@ -582,7 +590,7 @@ class TPLapp:
             outputs_fn = str(uuid.uuid4()) + ".ini"
             if self.requires_docker:
                 command_args = [
-                    "docker", "run", "--rm", "-it",
+                    "docker", "run", "--rm", "-it", self.docker_commands,
                     "-v", self.temporary_data_path + ":/data", "-e", "TPL_WORKING_DIRECTORY=/data",
                     "-v", application_permanent_path + ":/storage", "-e", "TPL_INTERNAL_DATA_DIRECTORY=/storage",
                     self.docker_image
@@ -600,7 +608,8 @@ class TPLapp:
                 config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
 
                 storage_details = param_dict['Param' + str(self.params_n)].replace("\"","")
-                output_storages = tpl.tools.get_output_login_information(storage_details, self.key)
+                if self.outputs_n > 0:
+                    output_storages = tpl.tools.get_output_login_information(storage_details, self.key)
 
                 for o in range(self.outputs_n):
                     # upload data to server
@@ -612,6 +621,9 @@ class TPLapp:
                         output_uri = self.upload_solidpod(output_storages[o],output_files[o])
                     elif output_storages[o]['type'] == 's3':
                         output_uri = self.upload_file(output_files[o])
+
+                    if output_storages[o]['encrypted'] == True:
+                        output_uri = tpl.tools.ecrypt_string(output_uri, self.key)
 
                     # create digital document
                     qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(

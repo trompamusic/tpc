@@ -27,6 +27,8 @@ The POC algorithm does the following: it copies Input1 and Input 2 to Outputs 1 
 
 Server information must be passed as an encrypted string. In this string, each line contains the information for each output.
 
-solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private
-solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private
-s3;
+solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private;1
+solidpod;https://trompa-solid.upf.edu;https://agkiokas2.trompa-solid.upf.edu/profile/card#me;https://agkiokas2.trompa-solid.upf.edu/private;0
+s3;1
+
+the first value indicates if it's a solidpod; The 2nd is the solidpod host; The 3rd is the solidpod user; The 4th is the solidpod folder to be saved;the 5th is if we want the TPL to encrypt the URI;
