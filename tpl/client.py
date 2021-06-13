@@ -1,4 +1,4 @@
-
+import tpl.tools
 import trompace.connection
 import trompace
 import trompace.queries.templates
@@ -9,7 +9,7 @@ import configparser
 import types
 
 class TPLclient():
-    def __init__(self, client_config):
+    def __init__(self, client_config, ce_config):
         self.config = client_config
         trompace.config.config.load(client_config)
         self.config_parser = configparser.ConfigParser()
@@ -39,9 +39,13 @@ class TPLclient():
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
             self.inputs[label] = input_property
 
-        for i in range(self.params_n):
+        for i in range(self.params_n+1):
             label = 'Param{}'.format(i + 1)
-            property = self.config_parser['Param{}'.format(i + 1)]
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
+            property = self.config_parser[label]
             check_pro = ['name', 'description', 'defaultValue', 'valuemaxlength', 'valueminlength', 'multiplevalues',
                          'valuename', 'valuepattern', 'valuerequired']
             if not all(x in property.keys() for x in check_pro):
@@ -57,12 +61,19 @@ class TPLclient():
             param_property.valueName = property['valuename']
             param_property.valuePattern = property['valuepattern']
             param_property.valueRequired = property.getboolean('valuerequired')
-            if self.config_parser.has_option('Param{}'.format(i + 1), 'id'):
-                param_property.id = self.config_parser['Param{}'.format(i + 1)]['id']
+            if self.config_parser.has_option(label, 'id'):
+                param_property.id = self.config_parser[label]['id']
 
             self.params[label] = param_property
 
-    def send_request(self, input_documents, param_values, execute=True):
+        self.connection_parser = configparser.ConfigParser()
+        self.connection_parser.read(ce_config)
+        self.encrypt_fn = self.connection_parser.get('tplKey', 'keyFile')
+        file = open(self.encrypt_fn, 'rb')
+        self.key = file.read()
+        file.close()
+
+    def send_request(self, input_documents, param_values, storage, execute=True):
 
         # it sends a request for the corresponding entry point and input to the algorithms a list of values
         # (input_values) that are the actual input of the algorithm. The number of items of input_values should be the
@@ -91,6 +102,20 @@ class TPLclient():
             }
             params_list_raw.append(param_input)
 
+        fp = open(storage, 'r')
+        storage_str = fp.read()
+        fp.close()
+        storage_str_encrypted = tpl.tools.ecrypt_string(storage_str, self.key)
+
+        label = 'Storage'
+        param_input = {
+            "value": storage_str_encrypted,
+            "potentialActionPropertyValueSpecificationIdentifier": self.params[label].id,
+            "valuePattern": trompace.StringConstant(self.params[label].valuePattern)
+        }
+        params_list_raw.append(param_input)
+
+
         qry = trompace.mutations.controlaction.mutation_request_controlaction(self.ca_id,self.ep_id, inputs_list_raw,
                                                                               params_list_raw)
         if execute:
@@ -105,19 +130,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='')
 
     parser.add_argument('--client_ini',  type=str)
+    parser.add_argument('--ce_ini',  type=str)
     parser.add_argument('--inputs', nargs='+')
     parser.add_argument('--params', nargs='+')
+    parser.add_argument('--storage_info', type=str)
+   # parser.add_argument('--tpl_key', nargs='+')
 
     args = parser.parse_args()
-    tpl_client = TPLclient(args.client_ini)
+    tpl_client = TPLclient(args.client_ini, args.ce_ini)
     inputs = args.inputs
     params = args.params
+    storage = args.storage_info
 
     if inputs is None:
         inputs = []
     if params is None:
         params = []
 
-    tpl_client.send_request(inputs, params, execute=False)
+    tpl_client.send_request(inputs, params, storage, execute=False)
 
   #  asyncio.run(get_all_control_actions())

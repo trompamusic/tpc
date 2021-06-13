@@ -11,6 +11,9 @@ import minio
 import tpl.tools
 import os
 import sys
+import requests
+import urllib
+
 import trompace
 import trompace.config
 import trompace.constants
@@ -21,12 +24,17 @@ import trompace.mutations.entrypoint
 import trompace.mutations.property
 import trompace.mutations.templates
 import trompace.mutations.digitaldocument
+import trompace.mutations.audioobject
+import trompace.mutations.mediaobject
+
 
 import trompace.connection
 import trompace.exceptions
 import trompace.subscriptions.controlaction
 import trompace.queries.controlaction
 import tpl.tools
+import trompasolid.client
+
 import validators
 '''Script of the TROMPA Processing Library class.
 '''
@@ -50,7 +58,6 @@ class TPLapp:
         self.config_parser.read(application_config)
         self.connection_parser = configparser.ConfigParser()
         self.connection_parser.read(ce_config)
-
 
         self.application_name = self.config_parser['Application']['name']
         self.contributor = self.config_parser['Application']['contributor']
@@ -76,6 +83,7 @@ class TPLapp:
         self.inputs_n = int(self.config_parser['ControlAction']['num_inputs'])
         self.params_n = int(self.config_parser['ControlAction']['num_params'])
         self.outputs_n = int(self.config_parser['ControlAction']['num_outputs'])
+        self.priotity = int(self.config_parser['ControlAction']['priority'])
 
         self.controlaction_id = None
         if self.config_parser.has_option('ControlAction', 'id'):
@@ -90,6 +98,7 @@ class TPLapp:
         self.requires_docker = self.config_parser.getboolean('EntryPoint', 'requires_docker')
         self.command_line = self.config_parser['EntryPoint']['command_line']
         self.docker_image = self.config_parser['EntryPoint']['docker_image']
+        self.docker_commands = self.config_parser['EntryPoint']['docker_commands']
 
         # load connection/secutiry information
         self.encrypt_fn = self.connection_parser.get('tplKey', 'keyFile')
@@ -98,7 +107,7 @@ class TPLapp:
         self.s3_secret = self.connection_parser.get('s3', 'secret_key')
         self.s3_server = self.connection_parser.get('s3', 'server')
         self.s3_public_server = self.connection_parser.get('s3', 'public_server')
-        self.authenticate = self.connection_parser.getboolean('auth','required')
+
         #minio client for uploading results
         self.minioclient = minio.Minio(
             self.s3_server,
@@ -113,7 +122,7 @@ class TPLapp:
         self.inputs = {}
         self.params = {}
         self.outputs = {}
-        self.command_dictionary = {}
+        self.identifier_to_label = {}
 
         ''' Read the inputs '''
         for i in range(self.inputs_n):
@@ -130,15 +139,22 @@ class TPLapp:
             input_property.rangeIncludes = trompace.StringConstant(property['rangeIncludes'])
             if self.config_parser.has_option('Input{}'.format(i + 1), 'id'):
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
+                self.identifier_to_label[input_property.id] = label
+
             input_property.argument = input_property.name
             input_property.encrypted = property.getboolean('encrypted')
+            input_property.field = property['field']
             self.inputs[label] = input_property
+            self.params[label] = input_property
             self.inputs[input_property.title] = label
-            self.command_dictionary[label] = ""
 
         ''' Read the params '''
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
+
             property = self.config_parser[label]
             check_pro = ['name', 'description', 'defaultValue', 'valuemaxlength', 'valueminlength', 'multiplevalues',
                          'valueName', 'valuepattern', 'valuerequired']
@@ -155,12 +171,17 @@ class TPLapp:
             param_property.valueName = property['valuename']
             param_property.valuePattern = property['valuepattern']
             param_property.valueRequired = property.getboolean('valuerequired')
-            if self.config_parser.has_option('Param{}'.format(i + 1), 'id'):
-                param_property.id = self.config_parser['Param{}'.format(i + 1)]['id']
+            if self.config_parser.has_option(label, 'id'):
+                param_property.id = self.config_parser[label]['id']
+                self.identifier_to_label[param_property.id] = label
+
             param_property.encrypted = property.getboolean('encrypted')
             param_property.argument = param_property.valueName
+            param_property.field = property['field']
+
             self.params[label] = param_property
-            self.command_dictionary[label] = ""
+            if i == self.params_n - 1:
+                self.params['OutputParameters'] = self.params[label]
 
         ''' Read the outputs '''
         for i in range(self.outputs_n):
@@ -168,6 +189,7 @@ class TPLapp:
             property = self.config_parser[label]
             check_pro = ['name', 'description', 'defaultValue', 'valuemaxlength', 'valueminlength', 'multiplevalues',
                          'valuename', 'valuepattern', 'valuerequired']
+
             if not all(x in property.keys() for x in check_pro):
                 missing_fields = [x for x in check_pro if x not in property.keys()]
                 raise trompace.exceptions.ConfigRequirementException(missing_fields)
@@ -185,6 +207,8 @@ class TPLapp:
             param_property.encrypted = property.getboolean('encrypted')
             param_property.mimeType = property.get('mimeType')
             param_property.extension = property.get('extension')
+            param_property.type = property.get('type')
+
             self.outputs[label] = param_property
 
         ''' Read the encryption key '''
@@ -199,7 +223,7 @@ class TPLapp:
         ''' Stores or information in the CE; i.e. it creates all the nodes and the interlining needed '''
 
         qry = trompace.mutations.application.mutation_create_application(
-            application_name=self.application_name,
+            name=self.application_name,
             contributor=self.contributor,
             creator=self.creator,
             source=self.source,
@@ -207,14 +231,14 @@ class TPLapp:
             description=self.description,
             language=self.language)
 
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         self.application_id = response['data']['CreateSoftwareApplication']['identifier']
         self.config_parser['Application']['id'] = self.application_id
 
         qry = trompace.mutations.controlaction.mutation_create_controlaction(name=self.control_action,
                                                                              description=self.description)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
         self.controlaction_id = response['data']['CreateControlAction']['identifier']
         self.config_parser['ControlAction']['id'] = self.controlaction_id
 
@@ -230,19 +254,19 @@ class TPLapp:
             contentType=[self.content_type],
             encodingType=[self.encoding_type])
 
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
         self.entrypoint_id = response['data']['CreateEntryPoint']['identifier']
         self.config_parser['EntryPoint']['id'] = self.entrypoint_id
 
         qry = trompace.mutations.application.mutation_add_entrypoint_application(
             application_id=self.application_id,
             entrypoint_id=self.entrypoint_id)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         qry = trompace.mutations.controlaction.mutation_add_entrypoint_controlaction(
             entrypoint_id=self.entrypoint_id,
             controlaction_id=self.controlaction_id)
-        response = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+        response = trompace.connection.submit_query(qry, auth_required=True)
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
@@ -252,16 +276,20 @@ class TPLapp:
                 description=self.inputs[label].description,
                 rangeIncludes=[self.inputs[label].rangeIncludes])
 
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
             self.inputs[label].id = resp['data']['CreateProperty']['identifier']
             self.config_parser['Input'+str(i+1)]['id'] = self.inputs[label].id
 
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.inputs[label].id)
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
+            self.identifier_to_label[self.inputs[label].id] = label
 
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
             qry = trompace.mutations.property.mutation_create_propertyvaluespecification(
                 name=self.params[label].name,
                 description=self.params[label].description,
@@ -273,15 +301,16 @@ class TPLapp:
                 valuePattern=self.params[label].valuePattern,
                 valueRequired=self.params[label].valueRequired)
 
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
             self.params[label].id = resp['data']['CreatePropertyValueSpecification']['identifier']
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.params[label].id)
-            self.config_parser['Param'+str(i+1)]['id'] = self.params[label].id
+            self.config_parser[label]['id'] = self.params[label].id
 
             # qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
             #     self.controlaction_id, self.params[i].id)
-            resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            resp = trompace.connection.submit_query(qry, auth_required=True)
+            self.identifier_to_label[self.params[label].id] = label
 
         with open(self.application_config, 'w') as fp:
             self.config_parser.write(fp)
@@ -312,20 +341,23 @@ class TPLapp:
         config['application']['params_n'] = str(self.params_n)
         config['application']['inputs_n'] = str(self.inputs_n)
 
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
-            config['Param' + str(i + 1)] = {}
-            config['Param' + str(i+1)]['name'] = self.params[label].name
-            config['Param' + str(i + 1)]['description'] = self.params[label].description
-            config['Param' + str(i + 1)]['defaultValue'] = self.params[label].defaultValue
-            config['Param' + str(i + 1)]['valueMaxLength'] = str(self.params[label].valueMaxLength)
-            config['Param' + str(i + 1)]['valueMinLength'] = str(self.params[label].valueMinLength)
-            config['Param' + str(i + 1)]['multipleValues'] = str(self.params[label].multipleValues)
-            config['Param' + str(i + 1)]['valueName'] = self.params[label].valueName
-            config['Param' + str(i + 1)]['valuePattern'] = self.params[label].valuePattern
-            config['Param' + str(i + 1)]['valueRequired'] = str(self.params[label].valueRequired)
-            config['Param' + str(i + 1)]['id'] = str(self.params[label].id)
-            config['Param' + str(i + 1)]['encrypted'] = str(self.params[label].encrypted)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
+            config[label] = {}
+            config[label]['name'] = self.params[label].name
+            config[label]['description'] = self.params[label].description
+            config[label]['defaultValue'] = self.params[label].defaultValue
+            config[label]['valueMaxLength'] = str(self.params[label].valueMaxLength)
+            config[label]['valueMinLength'] = str(self.params[label].valueMinLength)
+            config[label]['multipleValues'] = str(self.params[label].multipleValues)
+            config[label]['valueName'] = self.params[label].valueName
+            config[label]['valuePattern'] = self.params[label].valuePattern
+            config[label]['valueRequired'] = str(self.params[label].valueRequired)
+            config[label]['id'] = str(self.params[label].id)
+            config[label]['encrypted'] = str(self.params[label].encrypted)
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
@@ -357,35 +389,45 @@ class TPLapp:
         configfile.close()
 
     async def download_files_async(self, params):
-        for key in params.keys():
-            value = params[key]
-            isURL = validators.url(value)
-            if isURL:
-                for i in range(self.inputs_n):
-                    # download only if it's input
-                    label = "Input{}".format(i + 1)
-                    if self.inputs[label].argument == key:
-                        basename = str(uuid.uuid4())
-                        local_fn = os.path.join(self.temporary_data_path, basename)
-                        await trompace.connection.download_file_async(value, local_fn)
-                        params[key] = basename  # docker filesystem
+        for i in range(self.inputs_n):
+            # download only if it's input
+            label = "Input{}".format(i + 1)
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentURL":
+                source = params[label]
+                basename = str(uuid.uuid4())
+                _, file_extension = os.path.splitext(source)
+                local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
+                trompace.connection.download_file_async(source, local_fn)
+                #     print(os.path.exists(local_fn))
+                params[label] = basename + file_extension  # docker filesystem
         return params
 
-    def download_files(self, params):
-        for key in params.keys():
-            value = params[key]
-            isURL = validators.url(value)
-            if isURL:
-                for i in range(self.inputs_n):
-                    # download only if it's input
-                    label = "Input{}".format(i + 1)
-                    if self.inputs[label].argument == key:
-                        basename = str(uuid.uuid4())
-                        _, file_extension = os.path.splitext(value)
-                        local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
-                        trompace.connection.download_file(value, local_fn)
-                   #     print(os.path.exists(local_fn))
-                        params[key] = basename  + file_extension# docker filesystem
+    def download_files(self, params, storages):
+        for i in range(self.inputs_n):
+            # download only if it's input
+            label = "Input{}".format(i + 1)
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
+                source = params[label]
+                basename = str(uuid.uuid4())
+                storage_type = storages[label]['type']
+
+                if not tpl.tools.check_if_string_is_valid_uri(source):
+                    source = tpl.tools.decrypt_string(source, self.key)
+                    if not tpl.tools.check_if_string_is_valid_uri(source):
+                        raise NameError('Invalid Source URI for ', params[label])
+
+                _, file_extension = os.path.splitext(source)
+                local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
+
+                if storage_type == "solid":
+                    host = storages[label]['host']
+                    user = storages[label]['user']
+                    self.download_from_solid_pod(source, host, user, local_fn)
+                elif tpl.tools.check_if_string_is_valid_uri(source):
+                    trompace.connection.download_file(source, local_fn)
+                else:
+                    print("Not a valid URL")
+                params[label] = basename + file_extension  # docker filesystem
         return params
 
     async def upload_file_async(self, fn):
@@ -394,9 +436,39 @@ class TPLapp:
         return fileURI
 
     def upload_file(self, fn):
-        self.minioclient.fput_object("tpl", fn, os.path.join(self.temporary_data_path, fn))
-        fileURI = self.s3_public_server + "tpl/" + fn
+        self.minioclient.fput_object("tpl", os.path.basename(fn), fn)
+        fileURI = self.s3_public_server + "tpl/" + os.path.basename(fn)
+
         return fileURI
+
+    def upload_solidpod(self, host, username, folder, fn):
+
+        solid_client = trompasolid.client
+        solid_client.init_redis()
+
+        bearer = solid_client.get_bearer_for_user(host, username)
+        output_uri = folder + "/" + os.path.basename(fn)
+        fp = open(fn, 'rb')
+        data = fp.read()
+        fp.close()
+        headers = {
+            "authorization": "Bearer %s" % bearer,
+            "Content-Type": "application/binary"
+        }
+        response = requests.put(output_uri, data=data, headers=headers)
+        return output_uri
+
+    def download_from_solid_pod(self, uri, host, username, out_filename):
+
+        solid_client = trompasolid.client
+        solid_client.init_redis()
+        bearer = solid_client.get_bearer_for_user(host, username)
+        r = requests.get(uri, headers={"authorization": "Bearer %s" % bearer})
+        r.raise_for_status()
+        fp = open(out_filename, 'bw')
+        fp.write(r.content)
+        fp.close()
+
     async def listen_requests(self,execute_flag=False):
     # it listen for new entry point subscriptions and executes some code
 
@@ -428,53 +500,108 @@ class TPLapp:
                 if not is_ok:
                     raise Exception("don't have an ack yet")
 
-
+    def create_ce_node(self, output_uri, label):
+        if self.outputs[label].type == "DigitalDocument":
+            qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                source=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument
+            )
+        elif self.outputs[label].type == "MediaObject":
+            qry = trompace.mutations.mediaobject.mutation_create_media_object(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        elif self.outputs[label].type == "AudioObject":
+            qry = trompace.mutations.audioobject.mutation_create_audioobject(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        elif self.outputs[label].type == "VideoObject":
+            qry = trompace.mutations.videoobject.mutation_create_video_object(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        resp = trompace.connection.submit_query(qry, auth_required=True)
+        if self.outputs[label].type == "DigitalDocument":
+            identifier = resp['data']['CreateDigitalDocument']['identifier']
+        elif self.outputs[label].type == "MediaObject":
+            identifier = resp['data']['CreateMediaObject']['identifier']
+        elif self.outputs[label].type == "AudioObject":
+            identifier = resp['data']['CreateAudioObject']['identifier']
+        elif self.outputs[label].type == "VideoObject":
+            identifier = resp['data']['CreateVideoObject']['identifier']
+        else:
+            return None
+        return identifier
     def create_command_dict(self, params):
         # create a dict() with all the commands parameters. For input and params, these will be read from the control
         # action. For the outputs these will be created on the fly
 
         command_dict = {}
         input_files = {}
-        for key in params.keys():
-            for i in range(self.inputs_n):
-                label = 'Input{}'.format(i + 1)
-                if self.inputs[label].argument == key:
-                    command_dict[label] = key + " " + "/data/" + params[key] + " "
-                    input_files[label] = os.path.join(self.temporary_data_path, params[key])
-            for i in range(self.params_n):
-                label = 'Param{}'.format(i + 1)
-                if self.params[label].argument == key:
-                    if params[key] in self.constants.keys():
-                        command_dict[label] = key + " " + self.constants[params[key]] + " "
-                    else:
-                        command_dict[label] = key + " " + params[key] + " "
+
+        for i in range(self.inputs_n):
+            label = 'Input{}'.format(i + 1)
+            if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
+                command_dict[label] = "/data/" + params[label] + " "
+                input_files[label] = os.path.join(self.temporary_data_path, params[label])
+            else:
+                command_dict[label] = params[label]
+
+        for i in range(self.params_n):
+            label = 'Param{}'.format(i + 1)
+            command_dict[label] = "\"" + params[label] + "\""
+            if params[label] in self.constants.keys():
+                params[label] = self.constants[params[label]]
 
         output_files = []
         for i in range(self.outputs_n):
             label = 'Output{}'.format(i + 1)
             out_fn = str(uuid.uuid4())
-            command_dict[label] = self.outputs[label].argument + " /data/" + out_fn + "." + self.outputs[label].extension
-            output_files.append(out_fn + "." + self.outputs[label].extension)
+            command_dict[label] = " /data/" + out_fn + "." + self.outputs[label].extension
+            output_files.append(os.path.join(self.temporary_data_path, out_fn + "." + self.outputs[label].extension))
 
         return [command_dict, input_files, output_files]
 
 
     def execute_command(self, params, control_id, execute_flag, total_jobs):
         # update control_id status to running
+        xxx=0
+       # authentication_data = json.loads(params['Param'+str(self.params_n-1)])
+        storage_details = params['Storage']
+        storages = tpl.tools.get_storage_information(storage_details, self.key)
+
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
         os.makedirs(application_permanent_path, exist_ok=True)
 
         print("PID: ", os.getpid(), "executing ", control_id)
         try:
-            qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
-                                                                    trompace.constants.ActionStatusType.ActiveActionStatus)
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
          #   print('updating ca status')
-            params = self.download_files(params)
-         #   print('downloaded file')
-
+            params = self.download_files(params, storages)
             param_dict, input_files, output_files = self.create_command_dict(params)
-         #   print('updated params')
 
             for i in range(self.inputs_n):
                 label = 'Input{}'.format(i+1)
@@ -485,12 +612,11 @@ class TPLapp:
                         print("Unexpected error:", sys.exc_info()[0])
 
             cmd_to_execute = self.command_line.format(**param_dict)
-         #   print('created command')
 
             outputs_fn = str(uuid.uuid4()) + ".ini"
             if self.requires_docker:
                 command_args = [
-                    "docker", "run", "--rm", "-it",
+                    "docker", "run", "--rm", "-it", self.docker_commands,
                     "-v", self.temporary_data_path + ":/data", "-e", "TPL_WORKING_DIRECTORY=/data",
                     "-v", application_permanent_path + ":/storage", "-e", "TPL_INTERNAL_DATA_DIRECTORY=/storage",
                     self.docker_image
@@ -501,49 +627,43 @@ class TPLapp:
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
-                        fp = open(os.path.join(self.temporary_data_path, output_files[o]), 'w')
+                        fp = open(output_files[o], 'w')
                         fp.close()
 
                 config_outputs_fn = configparser.ConfigParser()
                 config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
-           #     print('saving outputs')
 
                 for o in range(self.outputs_n):
                     # upload data to server
-                    argument = self.outputs['Output{}'.format(o+1)].argument[2::]
-                    if config_outputs_fn.has_option('tplout', argument):
-                        output_files[o] = os.path.basename(config_outputs_fn['tplout'][argument])
-                    output_uri = self.upload_file(output_files[o])
+                    label = 'Output{}'.format(o+1)
+                    if storages[label]['type'] == 'solid':
+                        output_uri = self.upload_solidpod(storages[label]['host'], storages[label]['user'],
+                                                          storages[label]['storage'], output_files[o])
+                    elif storages[label]['type'] == 's3':
+                        output_uri = self.upload_file(output_files[o])
+
+                    if storages[label]['encrypted'] == True:
+                        output_uri = tpl.tools.ecrypt_string(output_uri, self.key)
 
                     # create digital document
-                    qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
-                        title=self.application_name,
-                        contributor=self.contributor,
-                        creator=self.creator,
-                        source=output_uri,
-                        format_=self.outputs['Output{}'.format(o+1)].mimeType,
-                        language="en",
-                        description=self.outputs['Output{}'.format(o+1)].argument
-                    )
-                    resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
-                    identifier = resp['data']['CreateDigitalDocument']['identifier']
+                    identifier = self.create_ce_node(output_uri, label)
+
 
                 #    link digital document to source
                     qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,
                                                                                                identifier)
-                    resp = trompace.connection.submit_query(qry, auth_required=self.authenticate)
+                    resp = trompace.connection.submit_query(qry, auth_required=True)
 
             # update control_id status to finished
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                     trompace.constants.ActionStatusType.CompletedActionStatus)
 
-
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            trompace.connection.submit_query(qry, auth_required=True)
         except:
             print("Error:", sys.exc_info()[0], " for ca_id", control_id)
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,
                                                                     trompace.constants.ActionStatusType.FailedActionStatus)
-            trompace.connection.submit_query(qry, auth_required=self.authenticate)
+            trompace.connection.submit_query(qry, auth_required=True)
 
         # print('updating ca status')
         total_jobs.value -= 1

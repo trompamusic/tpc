@@ -9,6 +9,7 @@ import multiprocessing
 import tpl.command
 import time
 import os
+import numpy
 
 class TPLschedule():
     def __init__(self, tpl_config, register):
@@ -73,21 +74,37 @@ class TPLschedule():
             ca_list.append({"identifier":ca})
         filter['wasDerivedFrom_in'] = ca_list
         args['filter'] = filter
-        qry = trompace.queries.templates.format_query("ControlAction",args,["identifier"])
+        qry = trompace.queries.templates.format_query("ControlAction",args,["identifier", "wasDerivedFrom{identifier}"])
         response = trompace.connection.submit_query(qry, auth_required=False)
         pending_jobs = response['data']['ControlAction']
         pending_jobs_n = len(pending_jobs)
+        priorities = numpy.zeros((pending_jobs_n,))
+
+        for j in range(pending_jobs_n):
+            template_ca_id = pending_jobs[j]['wasDerivedFrom'][0]['identifier']
+            priorities[j] = self.applications_map[template_ca_id].priotity
+
+        ids = numpy.argsort(priorities)
     #    print(pending_jobs)
         jobs_to_run = min(self.max_processes - self.active_jobs.value, pending_jobs_n)
     #    print(str(time.time()) + " : " + str(jobs_to_run) + " jobs are running")
+
+        # update the status of the ca that will be run in this poll
         for j in range(jobs_to_run):
-            ca_id = pending_jobs[j]['identifier']
+            ca_id = pending_jobs[ids[j]]['identifier']
+            qry = trompace.mutations.controlaction.mutation_update_controlaction_status(ca_id,
+                                                                    trompace.constants.ActionStatusType.ActiveActionStatus)
+            trompace.connection.submit_query(qry, auth_required=True)
+
+        for j in range(jobs_to_run):
+            ca_id = pending_jobs[ids[j]]['identifier']
          #   print(ca_id)
             qry = trompace.queries.controlaction.query_controlaction(ca_id)
             request_data = trompace.connection.submit_query(qry, auth_required=False)
             source_ca_id = request_data['data']['ControlAction'][0]['wasDerivedFrom'][0]['identifier']
-            params = tpl.tools.get_ca_params(request_data)
             app2run = self.applications_map[source_ca_id]
+            params = tpl.tools.get_ca_params(request_data, app2run)
+
             self.active_jobs.value += 1
             kwargs = {}
             kwargs['params'] = params

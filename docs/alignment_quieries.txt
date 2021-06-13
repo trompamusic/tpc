@@ -1,0 +1,39 @@
+mutation {
+  RequestControlAction(
+    controlAction: {
+      potentialActionIdentifier: "e95f7c92-26dd-49b2-a42e-cd4fcf9ecaab"
+      entryPointIdentifier: "e3445e5e-bb17-4e19-8966-dd15c67a1aa3"
+      propertyObject: [
+        {
+          nodeIdentifier: "input1Identifier"
+          potentialActionPropertyIdentifier: "7318de34-fe3c-4d9d-93ed-deb8927d789d"
+          nodeType: DigitalDocument
+        }
+        {
+          nodeIdentifier: "input2Identifier"
+          potentialActionPropertyIdentifier: "d4d3e092-bc00-44ae-baec-00d05edf0bc2"
+          nodeType: DigitalDocument
+        }
+      ]
+      propertyValueObject: [
+        {
+          value: "Param1"
+          potentialActionPropertyValueSpecificationIdentifier: "d6c2098f-4594-4579-a78e-ee9c7e8c6dc4"
+          valuePattern: String
+        }
+        {
+          value: "Param2"
+          potentialActionPropertyValueSpecificationIdentifier: "eaad42fd-02a8-47e1-85a1-a6c727614d4a"
+          valuePattern: String
+        }
+        {
+          value: "Param3"
+          potentialActionPropertyValueSpecificationIdentifier: "76b0fde4-25d8-4f00-81f0-7d7b3ab53997"
+          valuePattern: String
+        }
+      ]
+    }
+  ) {
+    identifier
+  }
+}

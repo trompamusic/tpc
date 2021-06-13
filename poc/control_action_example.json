@@ -1,0 +1,49 @@
+mutation {
+  RequestControlAction(
+    controlAction: {
+      potentialActionIdentifier: "6c19bb14-8a3f-4aa6-8290-b618bb7145f8"
+      entryPointIdentifier: "c7e37c2d-ae8a-4917-a77c-ec98ebdebe0e"
+      propertyObject: [
+        {
+          nodeIdentifier: "e8aaa49c-9e5f-468e-852f-c100b29df780"
+          potentialActionPropertyIdentifier: "0afc98a6-b44b-4c4f-b786-1918820ac899"
+          nodeType: DigitalDocument
+        }
+        {
+          nodeIdentifier: "6fec2ce3-00e7-4e51-9fe1-f5bb49911e21"
+          potentialActionPropertyIdentifier: "77838a99-9784-4442-8ab6-d85a922908a8"
+          nodeType: DigitalDocument
+        }
+        {
+          nodeIdentifier: "e8aaa49c-9e5f-468e-852f-c100b29df780"
+          potentialActionPropertyIdentifier: "852cbdca-a4eb-41ab-955b-124c93aead4b"
+          nodeType: DigitalDocument
+        }
+        {
+          nodeIdentifier: "6fec2ce3-00e7-4e51-9fe1-f5bb49911e21"
+          potentialActionPropertyIdentifier: "fd9e4a60-2cda-4c51-824d-287e0cd48ecc"
+          nodeType: DigitalDocument
+        }
+      ]
+      propertyValueObject: [
+        {
+          value: "Parameter 1 string value"
+          potentialActionPropertyValueSpecificationIdentifier: "e443f36a-e172-4f2f-bfeb-9e4a4d7e5a6e"
+          valuePattern: String
+        }
+        {
+          value: "Parameter 2 string value"
+          potentialActionPropertyValueSpecificationIdentifier: "4e6359e5-878c-4d21-b56c-4dc81188a708"
+          valuePattern: String
+        }
+        {
+          value: "gAAAAABgvgo_OHeYlg4gwsGplOJYL2ii5N-VwcoA2D68_mp_Lm-aTCKNHTC6_AbXgKirTuxbar0jriYIn8eCF1Y0Uvuo0991fWRxhGc_8oFuUg9b3dpfX8VG_kvds3sHc7kCl4D0s1BYe0qlC6LUKVCOgU1MDcSYRplA_UYJai_wM4i_amnmjVwZoF6VmeXEKxy_pCgjxrGAjH2o2pTJxLKM70G1qzMTbgeh9G6cUrIeIzDCSN256tyu3nBSteBRCg_tlaw6EG34FmjPIftW5XhLSOd4hM8962ZkCNPdAI6lBsF8WEk2mpHZslBUHbfxAVndyGAkSPL_UEbCh4VuRMCBc4FoJ1u1M_s6sXee68evbhCGyMGAfFaRdTpBO1w60z2zfWYBdPKL0X4AeXr2bheaxYG8pC7sa0LtRF1x3viamWvPRDCleK-dfxA4We9Tw6OV4rlA_22BgK5Du48uPQkdbjINpJhuTg=="
+          potentialActionPropertyValueSpecificationIdentifier: "202a5bf9-9e7b-4505-b0d8-fd00b8ba5aa3"
+          valuePattern: String
+        }
+      ]
+    }
+  ) {
+    identifier
+  }
+}
