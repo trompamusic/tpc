@@ -24,6 +24,9 @@ import trompace.mutations.entrypoint
 import trompace.mutations.property
 import trompace.mutations.templates
 import trompace.mutations.digitaldocument
+import trompace.mutations.audioobject
+import trompace.mutations.mediaobject
+
 
 import trompace.connection
 import trompace.exceptions
@@ -55,7 +58,6 @@ class TPLapp:
         self.config_parser.read(application_config)
         self.connection_parser = configparser.ConfigParser()
         self.connection_parser.read(ce_config)
-
 
         self.application_name = self.config_parser['Application']['name']
         self.contributor = self.config_parser['Application']['contributor']
@@ -147,8 +149,12 @@ class TPLapp:
             self.inputs[input_property.title] = label
 
         ''' Read the params '''
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
+
             property = self.config_parser[label]
             check_pro = ['name', 'description', 'defaultValue', 'valuemaxlength', 'valueminlength', 'multiplevalues',
                          'valueName', 'valuepattern', 'valuerequired']
@@ -165,8 +171,8 @@ class TPLapp:
             param_property.valueName = property['valuename']
             param_property.valuePattern = property['valuepattern']
             param_property.valueRequired = property.getboolean('valuerequired')
-            if self.config_parser.has_option('Param{}'.format(i + 1), 'id'):
-                param_property.id = self.config_parser['Param{}'.format(i + 1)]['id']
+            if self.config_parser.has_option(label, 'id'):
+                param_property.id = self.config_parser[label]['id']
                 self.identifier_to_label[param_property.id] = label
 
             param_property.encrypted = property.getboolean('encrypted')
@@ -201,6 +207,8 @@ class TPLapp:
             param_property.encrypted = property.getboolean('encrypted')
             param_property.mimeType = property.get('mimeType')
             param_property.extension = property.get('extension')
+            param_property.type = property.get('type')
+
             self.outputs[label] = param_property
 
         ''' Read the encryption key '''
@@ -215,7 +223,7 @@ class TPLapp:
         ''' Stores or information in the CE; i.e. it creates all the nodes and the interlining needed '''
 
         qry = trompace.mutations.application.mutation_create_application(
-            application_name=self.application_name,
+            name=self.application_name,
             contributor=self.contributor,
             creator=self.creator,
             source=self.source,
@@ -277,8 +285,11 @@ class TPLapp:
             resp = trompace.connection.submit_query(qry, auth_required=True)
             self.identifier_to_label[self.inputs[label].id] = label
 
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
             qry = trompace.mutations.property.mutation_create_propertyvaluespecification(
                 name=self.params[label].name,
                 description=self.params[label].description,
@@ -294,7 +305,7 @@ class TPLapp:
             self.params[label].id = resp['data']['CreatePropertyValueSpecification']['identifier']
             qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
                 self.controlaction_id, self.params[label].id)
-            self.config_parser['Param'+str(i+1)]['id'] = self.params[label].id
+            self.config_parser[label]['id'] = self.params[label].id
 
             # qry = trompace.mutations.controlaction.mutation_add_controlaction_object(
             #     self.controlaction_id, self.params[i].id)
@@ -330,20 +341,23 @@ class TPLapp:
         config['application']['params_n'] = str(self.params_n)
         config['application']['inputs_n'] = str(self.inputs_n)
 
-        for i in range(self.params_n):
-            label = 'Param{}'.format(i + 1)
-            config['Param' + str(i + 1)] = {}
-            config['Param' + str(i+1)]['name'] = self.params[label].name
-            config['Param' + str(i + 1)]['description'] = self.params[label].description
-            config['Param' + str(i + 1)]['defaultValue'] = self.params[label].defaultValue
-            config['Param' + str(i + 1)]['valueMaxLength'] = str(self.params[label].valueMaxLength)
-            config['Param' + str(i + 1)]['valueMinLength'] = str(self.params[label].valueMinLength)
-            config['Param' + str(i + 1)]['multipleValues'] = str(self.params[label].multipleValues)
-            config['Param' + str(i + 1)]['valueName'] = self.params[label].valueName
-            config['Param' + str(i + 1)]['valuePattern'] = self.params[label].valuePattern
-            config['Param' + str(i + 1)]['valueRequired'] = str(self.params[label].valueRequired)
-            config['Param' + str(i + 1)]['id'] = str(self.params[label].id)
-            config['Param' + str(i + 1)]['encrypted'] = str(self.params[label].encrypted)
+        for i in range(self.params_n+1):
+            if i < self.params_n:
+                label = 'Param{}'.format(i + 1)
+            else:
+                label = 'Storage'
+            config[label] = {}
+            config[label]['name'] = self.params[label].name
+            config[label]['description'] = self.params[label].description
+            config[label]['defaultValue'] = self.params[label].defaultValue
+            config[label]['valueMaxLength'] = str(self.params[label].valueMaxLength)
+            config[label]['valueMinLength'] = str(self.params[label].valueMinLength)
+            config[label]['multipleValues'] = str(self.params[label].multipleValues)
+            config[label]['valueName'] = self.params[label].valueName
+            config[label]['valuePattern'] = self.params[label].valuePattern
+            config[label]['valueRequired'] = str(self.params[label].valueRequired)
+            config[label]['id'] = str(self.params[label].id)
+            config[label]['encrypted'] = str(self.params[label].encrypted)
 
         for i in range(self.inputs_n):
             label = 'Input{}'.format(i + 1)
@@ -388,43 +402,31 @@ class TPLapp:
                 params[label] = basename + file_extension  # docker filesystem
         return params
 
-    def download_files(self, params):
+    def download_files(self, params, storages):
         for i in range(self.inputs_n):
             # download only if it's input
             label = "Input{}".format(i + 1)
             if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
                 source = params[label]
                 basename = str(uuid.uuid4())
+                storage_type = storages[label]['type']
 
                 if not tpl.tools.check_if_string_is_valid_uri(source):
                     source = tpl.tools.decrypt_string(source, self.key)
                     if not tpl.tools.check_if_string_is_valid_uri(source):
                         raise NameError('Invalid Source URI for ', params[label])
+
                 _, file_extension = os.path.splitext(source)
                 local_fn = os.path.join(self.temporary_data_path, basename) + file_extension
 
-                if tpl.tools.check_if_uri_is_solid_pod(source):
-                    self.download_from_solid_pod(source, local_fn)
+                if storage_type == "solid":
+                    host = storages[label]['host']
+                    user = storages[label]['user']
+                    self.download_from_solid_pod(source, host, user, local_fn)
                 elif tpl.tools.check_if_string_is_valid_uri(source):
                     trompace.connection.download_file(source, local_fn)
                 else:
                     print("Not a valid URL")
-
-              #   try:
-              #
-              #   except requests.exceptions.HTTPError:
-              #       tpl.tools.download_from_solid_pod(source)
-              # #      trompace.connection.download_file(source, local_fn)
-              #   else:
-              #       print("Unexpected error:", sys.exc_info()[0])
-
-                # except Exception as e:
-                #     print(e)
-                #     trompace.connection.download_file(source, local_fn)
-                # else:
-                #     print("Unexpected error:", sys.exc_info()[0])
-                #     print("could not download file")
-                #     print(os.path.exists(local_fn))
                 params[label] = basename + file_extension  # docker filesystem
         return params
 
@@ -439,13 +441,13 @@ class TPLapp:
 
         return fileURI
 
-    def upload_solidpod(self, solidpod_info, fn):
+    def upload_solidpod(self, host, username, folder, fn):
 
         solid_client = trompasolid.client
         solid_client.init_redis()
 
-        bearer = solid_client.get_bearer_for_user(solidpod_info['server'], solidpod_info['user'])
-        output_uri = solidpod_info['folder'] + "/" + os.path.basename(fn)
+        bearer = solid_client.get_bearer_for_user(host, username)
+        output_uri = folder + "/" + os.path.basename(fn)
         fp = open(fn, 'rb')
         data = fp.read()
         fp.close()
@@ -453,25 +455,14 @@ class TPLapp:
             "authorization": "Bearer %s" % bearer,
             "Content-Type": "application/binary"
         }
-      #  test_response = requests.post(solidpod_info['folder'], files={os.path.basename(fn): fp}, headers={"authorization": "Bearer %s" % bearer})
-
-      #  r = requests.put(output_uri, data=data, headers=headers)
         response = requests.put(output_uri, data=data, headers=headers)
-
         return output_uri
 
-    def download_from_solid_pod(self, uri, out_filename):
+    def download_from_solid_pod(self, uri, host, username, out_filename):
 
         solid_client = trompasolid.client
         solid_client.init_redis()
-        urlParseResult = urllib.parse.urlparse(uri)
-        pos = urlParseResult.netloc.find(".")
-
-        host = urlParseResult.scheme + "://" + urlParseResult.netloc[pos + 1::]
-
-        bearer = solid_client.get_bearer_for_user(host, "https://agkiokas2.trompa-solid.upf.edu/profile/card#me")
-        bearer = solid_client.get_bearer_for_user(host, "https://tpl-alignment-test.trompa-solid.upf.edu/profile/card#me")
-
+        bearer = solid_client.get_bearer_for_user(host, username)
         r = requests.get(uri, headers={"authorization": "Bearer %s" % bearer})
         r.raise_for_status()
         fp = open(out_filename, 'bw')
@@ -509,7 +500,62 @@ class TPLapp:
                 if not is_ok:
                     raise Exception("don't have an ack yet")
 
-
+    def create_ce_node(self, output_uri, label):
+        if self.outputs[label].type == "DigitalDocument":
+            qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                source=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument
+            )
+        elif self.outputs[label].type == "MediaObject":
+            qry = trompace.mutations.mediaobject.mutation_create_media_object(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        elif self.outputs[label].type == "AudioObject":
+            qry = trompace.mutations.audioobject.mutation_create_audioobject(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        elif self.outputs[label].type == "VideoObject":
+            qry = trompace.mutations.videoobject.mutation_create_video_object(
+                title=self.application_name,
+                contributor=self.contributor,
+                creator=self.creator,
+                contenturl=output_uri,
+                format_=self.outputs[label].mimeType,
+                language="en",
+                description=self.outputs[label].argument,
+                source=""
+            )
+        resp = trompace.connection.submit_query(qry, auth_required=True)
+        if self.outputs[label].type == "DigitalDocument":
+            identifier = resp['data']['CreateDigitalDocument']['identifier']
+        elif self.outputs[label].type == "MediaObject":
+            identifier = resp['data']['CreateMediaObject']['identifier']
+        elif self.outputs[label].type == "AudioObject":
+            identifier = resp['data']['CreateAudioObject']['identifier']
+        elif self.outputs[label].type == "VideoObject":
+            identifier = resp['data']['CreateVideoObject']['identifier']
+        else:
+            return None
+        return identifier
     def create_command_dict(self, params):
         # create a dict() with all the commands parameters. For input and params, these will be read from the control
         # action. For the outputs these will be created on the fly
@@ -531,27 +577,6 @@ class TPLapp:
             if params[label] in self.constants.keys():
                 params[label] = self.constants[params[label]]
 
-                # if self.params[label].argument == key:
-                #     if params[key] in self.constants.keys():
-                #         command_dict[label] = key + " " + self.constants[params[key]] + " "
-                #     else:
-                #         command_dict[label] = key + " " + params[key] + " "
-
-        # for i in range(self.params_n):
-        #     label = 'Param{}'.format(i + 1)
-        #     if self.params[label].argument == key:
-        #         if params[key] in self.constants.keys():
-        #             command_dict[label] = key + " " + self.constants[params[key]] + " "
-        #         else:
-        #             command_dict[label] = key + " " + params[key] + " "
-        # for key in params.keys():
-        #     for i in range(self.inputs_n):
-        #         label = 'Input{}'.format(i + 1)
-        #         if self.inputs[label].field == 'source':
-        #             command_dict[label] = "/data/" + params[key] + " "
-        #             input_files[label] = os.path.join(self.temporary_data_path, params[key])
-
-
         output_files = []
         for i in range(self.outputs_n):
             label = 'Output{}'.format(i + 1)
@@ -565,8 +590,9 @@ class TPLapp:
     def execute_command(self, params, control_id, execute_flag, total_jobs):
         # update control_id status to running
         xxx=0
-        print("authentication: ", params['Param'+str(self.params_n)])
        # authentication_data = json.loads(params['Param'+str(self.params_n-1)])
+        storage_details = params['Storage']
+        storages = tpl.tools.get_storage_information(storage_details, self.key)
 
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
         os.makedirs(application_permanent_path, exist_ok=True)
@@ -574,7 +600,7 @@ class TPLapp:
         print("PID: ", os.getpid(), "executing ", control_id)
         try:
          #   print('updating ca status')
-            params = self.download_files(params)
+            params = self.download_files(params, storages)
             param_dict, input_files, output_files = self.create_command_dict(params)
 
             for i in range(self.inputs_n):
@@ -607,36 +633,21 @@ class TPLapp:
                 config_outputs_fn = configparser.ConfigParser()
                 config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
 
-                storage_details = param_dict['Param' + str(self.params_n)].replace("\"","")
-                if self.outputs_n > 0:
-                    output_storages = tpl.tools.get_output_login_information(storage_details, self.key)
-
                 for o in range(self.outputs_n):
                     # upload data to server
-                    argument = self.outputs['Output{}'.format(o+1)].argument[2::]
-                    if config_outputs_fn.has_option('tplout', argument):
-                        output_files[o] = os.path.basename(config_outputs_fn['tplout'][argument])
-
-                    if output_storages[o]['type'] == 'solidpod':
-                        output_uri = self.upload_solidpod(output_storages[o],output_files[o])
-                    elif output_storages[o]['type'] == 's3':
+                    label = 'Output{}'.format(o+1)
+                    if storages[label]['type'] == 'solid':
+                        output_uri = self.upload_solidpod(storages[label]['host'], storages[label]['user'],
+                                                          storages[label]['storage'], output_files[o])
+                    elif storages[label]['type'] == 's3':
                         output_uri = self.upload_file(output_files[o])
 
-                    if output_storages[o]['encrypted'] == True:
+                    if storages[label]['encrypted'] == True:
                         output_uri = tpl.tools.ecrypt_string(output_uri, self.key)
 
                     # create digital document
-                    qry = trompace.mutations.digitaldocument.mutation_create_digitaldocument(
-                        title=self.application_name,
-                        contributor=self.contributor,
-                        creator=self.creator,
-                        source=output_uri,
-                        format_=self.outputs['Output{}'.format(o+1)].mimeType,
-                        language="en",
-                        description=self.outputs['Output{}'.format(o+1)].argument
-                    )
-                    resp = trompace.connection.submit_query(qry, auth_required=True)
-                    identifier = resp['data']['CreateDigitalDocument']['identifier']
+                    identifier = self.create_ce_node(output_uri, label)
+
 
                 #    link digital document to source
                     qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,

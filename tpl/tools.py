@@ -1,12 +1,8 @@
 import json
 import cryptography.fernet
-import trompace
 import validators
-import uuid
-import trompasolid
-import requests
-import urllib.parse
-import os
+import io
+import configparser
 
 def get_sub_dict(query):
     payload = {"variables": {},
@@ -110,6 +106,14 @@ def check_if_uri_is_solid_pod(uri):
 def check_if_string_is_valid_uri(uri):
     valid = validators.url(uri)
     return valid
+
+def get_storage_information(message,key):
+    fernet = cryptography.fernet.Fernet(key)
+    strmessage = fernet.decrypt(message.encode()).decode()
+    buf = io.StringIO(strmessage)
+    config = configparser.ConfigParser()
+    config.read_file(buf)
+    return config
 
 def get_output_login_information(message, key):
     fernet = cryptography.fernet.Fernet(key)
