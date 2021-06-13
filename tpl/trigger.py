@@ -47,6 +47,32 @@ class Triggerer():
         self.entrypoint_id = "21747964-7f0d-4e9e-bfa2-01c03ec0aa5f"
         trompace.config.config.load(ce_config)
         print("done")
+
+    def batch(self, node_type):
+        if node_type == "MediaObject":
+            qry = trompace.queries.mediaobject.query_mediaobject(return_items=["contentUrl", "identifier"])
+            request_data = trompace.connection.submit_query(qry, auth_required=False)
+            objects = request_data['data'][node_type]
+            actions_n = len(objects)
+            for object in objects:
+                print(object)
+                contentUrl = object['contentUrl']
+                identifier = object['identifier']
+                if contentUrl is not None:
+                    filename, file_extension = os.path.splitext(contentUrl)
+                    file_extension = file_extension[1::]
+                    #   extension = contentUrl((contentUrl.lastIndexOf(".") + 1):-1)
+
+                    if file_extension in self.type_to_app[node_type]:
+                        actions = self.type_to_app[node_type][file_extension]
+
+                    for action in actions:
+                        client = action['client']
+                        storage = action['storage_file']
+                        params = action['params']
+                        qry = client.send_request([identifier], params, storage, execute=False)
+                        print(qry)
+
     async def run(self, node_type):
         self.websocket_host = trompace.config.config.websocket_host
         print(self.websocket_host)
@@ -123,5 +149,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     trigger = Triggerer(args.trigger_ini, args.ce_config)
+    trigger.batch("MediaObject")
+
  #   trigger.run()
     asyncio.run(trigger.run("MediaObject"))
+    asyncio.run(trigger.run("AudioObject"))
