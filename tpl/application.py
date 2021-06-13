@@ -639,7 +639,7 @@ class TPLapp:
                     if storages[label]['type'] == 'solid':
                         output_uri = self.upload_solidpod(storages[label]['host'], storages[label]['user'],
                                                           storages[label]['storage'], output_files[o])
-                    elif storages[label]['type'] == 's3':
+                    elif storages[label]['type'] == 'tpl':
                         output_uri = self.upload_file(output_files[o])
 
                     if storages[label]['encrypted'] == True:

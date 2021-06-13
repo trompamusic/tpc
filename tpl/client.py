@@ -78,7 +78,14 @@ class TPLclient():
         # it sends a request for the corresponding entry point and input to the algorithms a list of values
         # (input_values) that are the actual input of the algorithm. The number of items of input_values should be the
         # same with self.inputs_n
-        if len(input_documents) != self.inputs_n:
+        if len(input_documents) != self.inputs_n and len(input_documents) > 1:
+
+            print("Wrong number of inputs")
+            return
+        elif len(input_documents) != self.inputs_n and len(input_documents) == 1:
+            #if we had one input given, then replicate
+            input_documents = [input_documents[0]] * self.inputs_n
+        else:
             print("Wrong number of inputs")
             return
 
