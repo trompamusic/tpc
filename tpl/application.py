@@ -409,8 +409,10 @@ class TPLapp:
             if self.inputs[label].field == 'source' or self.inputs[label].field == "contentUrl":
                 source = params[label]
                 basename = str(uuid.uuid4())
-                storage_type = storages[label]['type']
-
+                if label in storages:
+                    storage_type = storages[label]['type']
+                else:
+                    storage_type = "tpl"
                 if not tpl.tools.check_if_string_is_valid_uri(source):
                     source = tpl.tools.decrypt_string(source, self.key)
                     if not tpl.tools.check_if_string_is_valid_uri(source):
@@ -592,6 +594,7 @@ class TPLapp:
         xxx=0
        # authentication_data = json.loads(params['Param'+str(self.params_n-1)])
         storage_details = params['Storage']
+
         storages = tpl.tools.get_storage_information(storage_details, self.key)
 
         application_permanent_path = os.path.join(self.permanent_data_path, self.application_id)
@@ -623,7 +626,7 @@ class TPLapp:
                 ] + cmd_to_execute.split()
 
                 if execute_flag:
-                    subprocess.run(command_args)
+                    subprocess.run(command_args, stdout=subprocess.DEVNULL)
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
@@ -636,15 +639,17 @@ class TPLapp:
                 for o in range(self.outputs_n):
                     # upload data to server
                     label = 'Output{}'.format(o+1)
-                    if storages[label]['type'] == 'solid':
-                        output_uri = self.upload_solidpod(storages[label]['host'], storages[label]['user'],
-                                                          storages[label]['storage'], output_files[o])
-                    elif storages[label]['type'] == 'tpl':
+                    if label in storages:
+                        if storages[label]['type'] == 'solid':
+                            output_uri = self.upload_solidpod(storages[label]['host'], storages[label]['user'],
+                                                              storages[label]['storage'], output_files[o])
+                        elif storages[label]['type'] == 'tpl':
+                            output_uri = self.upload_file(output_files[o])
+
+                        if storages[label]['encrypted'] == True:
+                            output_uri = tpl.tools.ecrypt_string(output_uri, self.key)
+                    else:
                         output_uri = self.upload_file(output_files[o])
-
-                    if storages[label]['encrypted'] == True:
-                        output_uri = tpl.tools.ecrypt_string(output_uri, self.key)
-
                     # create digital document
                     identifier = self.create_ce_node(output_uri, label)
 
@@ -653,6 +658,13 @@ class TPLapp:
                     qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,
                                                                                                identifier)
                     resp = trompace.connection.submit_query(qry, auth_required=True)
+
+                    # Add is based on relation
+                    for i in range(self.inputs_n):
+                        input_identifier = params['Input' + str(i+1) + "id"]
+                        qry = trompace.mutations.templates.format_link_mutation("MergeDigitalDocumentIsBasedOn",                                                                                identifier, input_identifier)
+                        resp = trompace.connection.submit_query(qry, auth_required=True)
+
 
             # update control_id status to finished
             qry = trompace.mutations.controlaction.mutation_update_controlaction_status(control_id,

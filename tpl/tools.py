@@ -24,7 +24,7 @@ def get_ca_params(ca_response, application):
 
         if obj['nodeValue'] is not None:
             if field == "identifier":
-                ret_val[label] = obj[field]
+                ret_val[label] = obj['nodeValue'][field]
             else:
                 if field == "sourceuri":
                     if 'source' in obj['nodeValue'].keys():
@@ -35,6 +35,7 @@ def get_ca_params(ca_response, application):
                         raise NameError('Did not find a valid URL')
                 else:
                     ret_val[label] = obj['nodeValue'][field]
+            ret_val[label+"id"] = obj['nodeValue']['identifier']
 
         elif obj['value'] is not None:
             if field == "identifier":
@@ -108,12 +109,15 @@ def check_if_string_is_valid_uri(uri):
     return valid
 
 def get_storage_information(message,key):
-    fernet = cryptography.fernet.Fernet(key)
-    strmessage = fernet.decrypt(message.encode()).decode()
-    buf = io.StringIO(strmessage)
-    config = configparser.ConfigParser()
-    config.read_file(buf)
-    return config
+    if message != "":
+        fernet = cryptography.fernet.Fernet(key)
+        strmessage = fernet.decrypt(message.encode()).decode()
+        buf = io.StringIO(strmessage)
+        config = configparser.ConfigParser()
+        config.read_file(buf)
+        return config
+    else:
+        return {}
 
 def get_output_login_information(message, key):
     fernet = cryptography.fernet.Fernet(key)
