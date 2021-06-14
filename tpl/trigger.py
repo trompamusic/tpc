@@ -17,7 +17,7 @@ import asyncio
 import tpl.client
 
 class Triggerer():
-    def __init__(self, trigger_config, ce_config):
+    def __init__(self, trigger_config, ce_config, execute):
         self.type_to_app = {}
         self.node_types = ["AudioObject", "MediaObject", "VideoObject"]
         for type in self.node_types:
@@ -42,7 +42,7 @@ class Triggerer():
                 self.type_to_app[node_type][extension].append(clientObject)
             else:
                 self.type_to_app[node_type][extension] = [clientObject]
-
+        self.execute = execute
         trompace.config.config.load(ce_config)
         print("done")
 
@@ -68,8 +68,7 @@ class Triggerer():
                         client = action['client']
                         storage = action['storage_file']
                         params = action['params']
-                        qry = client.send_request([identifier], params, storage, execute=False)
-                        print(qry)
+                        qry = client.send_request([identifier], params, storage, execute=self.execute)
 
     async def run(self, node_type):
         self.websocket_host = trompace.config.config.websocket_host

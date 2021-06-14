@@ -13,7 +13,7 @@ import numpy
 import tpl.trigger
 
 class TPLschedule():
-    def __init__(self, tpl_config, register):
+    def __init__(self, tpl_config, register, execute):
         self.tpl_config = tpl_config
         self.applications = []
         self.applications_n = 0
@@ -58,14 +58,14 @@ class TPLschedule():
             if register:
                myApp.register()
 
-            myApp.write_client_ini(self.client_folder+"//"+myApp.application_name + ".ini")
+            myApp.write_client_ini(self.client_folder+"//"+myApp.application_name.replace(' ', '_') + ".ini")
             self.applications.append(myApp)
             self.applications_map[myApp.controlaction_id] = myApp
             self.control_actions.append(myApp.controlaction_id)
         self.applications_n = len(files)
         print(self.applications_n, " applications added..")
         self.active_jobs = multiprocessing.Value('i', 0)
-
+        self.execute = execute
     def poll(self):
         args = {}
         filter = {}
@@ -110,7 +110,7 @@ class TPLschedule():
             kwargs = {}
             kwargs['params'] = params
             kwargs['control_id'] = ca_id
-            kwargs['execute_flag'] = False
+            kwargs['execute_flag'] = self.execute
             kwargs['total_jobs'] = self.active_jobs
         #    app2run.execute_command(params=params,control_id=ca_id, execute_flag=True, total_jobs = self.active_jobs)
            # params, control_id, execute_flag
@@ -129,10 +129,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--tpl_config', type=str)  # config of the ce
     parser.add_argument('--register', type=int, default=0)
+    parser.add_argument('--exec', type=int, default=0)
 
 
     args = parser.parse_args()
-    myTPL = TPLschedule(args.tpl_config, bool(args.register))
+    myTPL = TPLschedule(args.tpl_config, bool(args.register), bool(args.exec))
 
    # asyncio.run(trigger.run("MediaObject"))
     #asyncio.run(trigger.run("AudioObject"))
