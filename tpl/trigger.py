@@ -150,10 +150,7 @@ if __name__ == "__main__":
   #  trigger.batch("MediaObject")
 
  #   trigger.run()
-    asyncio.run(trigger.run("MediaObject"))
-    asyncio.run(trigger.run("AudioObject"))
 
-    trigger = tpl.trigger.Triggerer(args.trigger_ini, args.ce_config)
     loop = asyncio.get_event_loop()
     task1 = loop.create_task(trigger.run("MediaObject"))
     task2 = loop.create_task(trigger.run("AudioObject"))
