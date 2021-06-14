@@ -124,7 +124,7 @@ class Triggerer():
                         client = action['client']
                         storage = action['storage_file']
                         params = action['params']
-                        qry = client.send_request([identifier], params, storage, execute=False)
+                        qry = client.send_request([identifier], params, storage, execute=self.execute)
                         print(qry)
                       #  action.e
                        # print(formatted)
