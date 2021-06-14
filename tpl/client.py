@@ -34,6 +34,12 @@ class TPLclient():
             input_property.name = property['name']
             input_property.title = property['title']
             input_property.description = property['description']
+            # rangeIncludes = property['rangeIncludes'].split(",")
+            # rangeIncludesStringConstant = []
+            # for r in rangeIncludes:
+            #     rangeIncludesStringConstant.append(trompace.StringConstant(r))
+            # input_property.rangeIncludes = rangeIncludesStringConstant
+
             input_property.rangeIncludes = trompace.StringConstant(property['rangeIncludes'])
             if self.config_parser.has_option('Input{}'.format(i + 1), 'id'):
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
@@ -106,10 +112,13 @@ class TPLclient():
             }
             params_list_raw.append(param_input)
 
-        fp = open(storage, 'r')
-        storage_str = fp.read()
-        fp.close()
-        storage_str_encrypted = tpl.tools.ecrypt_string(storage_str, self.key)
+        if storage != "":
+            fp = open(storage, 'r')
+            storage_str = fp.read()
+            fp.close()
+            storage_str_encrypted = tpl.tools.ecrypt_string(storage_str, self.key)
+        else:
+            storage_str_encrypted = ""
 
         label = 'Storage'
         param_input = {

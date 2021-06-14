@@ -27,7 +27,13 @@ class Triggerer():
         for line in lines:
             parts = line.split(';')
 
+            parts_n = len(parts)
+            for p in range(parts_n):
+                parts[p] = parts[p].strip()
             node_type, extension, ini_file = parts[0:3]
+            #ini_file = ini_file.strip()
+
+
             if len(parts) > 3:
                 params = parts[3::]
             else:
@@ -122,9 +128,8 @@ class Triggerer():
 
                     for action in actions:
                         client = action['client']
-                        storage = action['storage_file']
                         params = action['params']
-                        qry = client.send_request([identifier], params, storage, execute=self.execute)
+                        qry = client.send_request([identifier], params, "", execute=self.execute)
                         print(qry)
                       #  action.e
                        # print(formatted)
