@@ -624,7 +624,7 @@ class TPLapp:
             outputs_fn = str(uuid.uuid4()) + ".ini"
             if self.requires_docker:
                 command_args = [
-                    "sudo", "docker", "run", "--rm", "-it", self.docker_commands,
+                    "docker", "run", "--rm", "-it", self.docker_commands,
                     "-v", self.temporary_data_path + ":/data", "-e", "TPL_WORKING_DIRECTORY=/data",
                     "-v", application_permanent_path + ":/storage", "-e", "TPL_INTERNAL_DATA_DIRECTORY=/storage",
                     self.docker_image
@@ -633,8 +633,8 @@ class TPLapp:
                 if execute_flag:
                     print("executing:")
                     print(" ".join(command_args))
-                    os.system(" ".join(command_args))
-              #      subprocess.run(command_args)
+              #      os.system(" ".join(command_args))
+                    subprocess.run(command_args, shell=True)
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
