@@ -11,7 +11,7 @@ import types
 class TPLclient():
     def __init__(self, client_config, ce_config):
         self.config = client_config
-        trompace.config.config.load(client_config)
+        trompace.config.config.load(ce_config)
         self.config_parser = configparser.ConfigParser()
         self.config_parser.read(client_config)
         self.authenticate = self.config_parser.getboolean('auth', 'required')
