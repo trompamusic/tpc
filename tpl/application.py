@@ -633,7 +633,8 @@ class TPLapp:
                 if execute_flag:
                     print("executing:")
                     print(" ".join(command_args))
-                    subprocess.run(command_args)
+                    os.system(" ".join(command_args))
+              #      subprocess.run(command_args)
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
