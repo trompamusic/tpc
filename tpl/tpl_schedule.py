@@ -129,8 +129,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--tpl_config', type=str)  # config of the ce
     parser.add_argument('--register', type=int, default=0)
-    parser.add_argument('--trigger_ini', type=str, help='trigger config file', required=True)
-    parser.add_argument('--ce_config', type=str, help='ce config file', required=True)
+
 
     args = parser.parse_args()
     myTPL = TPLschedule(args.tpl_config, bool(args.register))
