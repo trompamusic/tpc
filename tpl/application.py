@@ -136,7 +136,12 @@ class TPLapp:
             input_property.name = property['name']
             input_property.title = property['title']
             input_property.description = property['description']
-            input_property.rangeIncludes = trompace.StringConstant(property['rangeIncludes'])
+            rangeIncludes = property['rangeIncludes'].split(",")
+            rangeIncludesStringConstant = []
+            for r in rangeIncludes:
+                rangeIncludesStringConstant.append(trompace.StringConstant(r))
+
+            input_property.rangeIncludes = rangeIncludesStringConstant
             if self.config_parser.has_option('Input{}'.format(i + 1), 'id'):
                 input_property.id = self.config_parser['Input{}'.format(i + 1)]['id']
                 self.identifier_to_label[input_property.id] = label
@@ -274,7 +279,7 @@ class TPLapp:
                 title=self.inputs[label].title,
                 name=self.inputs[label].name,
                 description=self.inputs[label].description,
-                rangeIncludes=[self.inputs[label].rangeIncludes])
+                rangeIncludes=self.inputs[label].rangeIncludes)
 
             resp = trompace.connection.submit_query(qry, auth_required=True)
             self.inputs[label].id = resp['data']['CreateProperty']['identifier']
@@ -365,7 +370,10 @@ class TPLapp:
             config['Input'+str(i+1)]['title'] = self.inputs[label].title
             config['Input'+str(i+1)]['name'] = self.inputs[label].name
             config['Input'+str(i+1)]['description'] = self.inputs[label].description
-            config['Input'+str(i+1)]['rangeIncludes'] = str(self.inputs[label].rangeIncludes)
+            config['Input'+str(i+1)]['rangeIncludes'] = "".join(str(self.inputs[label].rangeIncludes))
+
+
+           # config['Input'+str(i+1)]['rangeIncludes'] = str(self.inputs[label].rangeIncludes)
             config['Input'+str(i+1)]['id'] = str(self.inputs[label].id)
             config['Input' + str(i + 1)]['encrypted'] = str(self.inputs[label].encrypted)
 

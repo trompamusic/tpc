@@ -85,9 +85,6 @@ class TPLclient():
         elif len(input_documents) != self.inputs_n and len(input_documents) == 1:
             #if we had one input given, then replicate
             input_documents = [input_documents[0]] * self.inputs_n
-        else:
-            print("Wrong number of inputs")
-            return
 
         inputs_list_raw = []
         for i in range(self.inputs_n):

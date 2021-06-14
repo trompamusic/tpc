@@ -27,16 +27,15 @@ class Triggerer():
         for line in lines:
             parts = line.split(';')
 
-            node_type, extension, ini_file, storage_file = parts[0:4]
-            if len(parts) > 4:
-                params = parts[4::]
+            node_type, extension, ini_file = parts[0:3]
+            if len(parts) > 3:
+                params = parts[3::]
             else:
                 params = []
             client = tpl.client.TPLclient(ini_file, ce_config)
 
             clientObject = {}
             clientObject['client'] = client
-            clientObject['storage_file'] = storage_file
             clientObject['params'] = params
 
             if extension in self.type_to_app[node_type]:
@@ -44,7 +43,6 @@ class Triggerer():
             else:
                 self.type_to_app[node_type][extension] = [clientObject]
 
-        self.entrypoint_id = "21747964-7f0d-4e9e-bfa2-01c03ec0aa5f"
         trompace.config.config.load(ce_config)
         print("done")
 
@@ -149,8 +147,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     trigger = Triggerer(args.trigger_ini, args.ce_config)
-    trigger.batch("MediaObject")
+  #  trigger.batch("MediaObject")
 
  #   trigger.run()
     asyncio.run(trigger.run("MediaObject"))
     asyncio.run(trigger.run("AudioObject"))
+
+    trigger = tpl.trigger.Triggerer(args.trigger_ini, args.ce_config)
+    loop = asyncio.get_event_loop()
+    task1 = loop.create_task(trigger.run("MediaObject"))
+    task2 = loop.create_task(trigger.run("AudioObject"))
+
+    loop.run_forever()

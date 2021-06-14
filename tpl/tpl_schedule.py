@@ -10,6 +10,7 @@ import tpl.command
 import time
 import os
 import numpy
+import tpl.trigger
 
 class TPLschedule():
     def __init__(self, tpl_config, register):
@@ -128,11 +129,15 @@ if __name__ == "__main__":
 
     parser.add_argument('--tpl_config', type=str)  # config of the ce
     parser.add_argument('--register', type=int, default=0)
-    args = parser.parse_args()
+    parser.add_argument('--trigger_ini', type=str, help='trigger config file', required=True)
+    parser.add_argument('--ce_config', type=str, help='ce config file', required=True)
 
+    args = parser.parse_args()
     myTPL = TPLschedule(args.tpl_config, bool(args.register))
+
+   # asyncio.run(trigger.run("MediaObject"))
+    #asyncio.run(trigger.run("AudioObject"))
+
     while True:
         myTPL.poll()
         time.sleep(1)
-
-   # asyncio.run(myTPL.run())
