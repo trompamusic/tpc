@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    trigger = Triggerer(args.trigger_ini, args.ce_config)
+    trigger = Triggerer(args.trigger_ini, args.ce_config, True)
   #  trigger.batch("MediaObject")
 
  #   trigger.run()
