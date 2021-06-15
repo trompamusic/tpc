@@ -122,7 +122,6 @@ class Triggerer():
                     contentUrl = request_data['data'][node_type][0]['contentUrl']
                     filename, file_extension = os.path.splitext(contentUrl)
                     file_extension = file_extension[1::]
-                 #   extension = contentUrl((contentUrl.lastIndexOf(".") + 1):-1)
 
                     if file_extension in self.type_to_app[node_type]:
                         actions = self.type_to_app[node_type][file_extension]
@@ -131,15 +130,6 @@ class Triggerer():
                         client = action['client']
                         params = action['params']
                         qry = client.send_request([identifier], params, "", execute=self.execute)
-                      #  print(qry)
-                      #  action.e
-                       # print(formatted)
-                #    print("ok")
-               #     control_id = messageString["payload"]["data"]["ControlActionRequest"]["identifier"]
-               #     qry = trompace.queries.controlaction.query_controlaction(control_id)
-               #     request_data = trompace.connection.submit_query(qry, auth_required=False)
-               #     print(request_data)
-                #    params = tpl.tools.get_ca_params(request_data)
 
                 if not is_ok:
                     raise Exception("don't have an ack yet")
