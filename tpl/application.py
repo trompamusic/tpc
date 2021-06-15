@@ -588,7 +588,7 @@ class TPLapp:
         for i in range(self.outputs_n):
             label = 'Output{}'.format(i + 1)
             out_fn = str(uuid.uuid4())
-            command_dict[label] = " /data/" + out_fn + "." + self.outputs[label].extension
+            command_dict[label] = "/data/" + out_fn + "." + self.outputs[label].extension
             output_files.append(os.path.join(self.temporary_data_path, out_fn + "." + self.outputs[label].extension))
 
         return [command_dict, input_files, output_files]
@@ -633,8 +633,9 @@ class TPLapp:
                 if execute_flag:
                     print("executing:")
                     print(" ".join(command_args))
-              #      os.system(" ".join(command_args))
-                    subprocess.run(command_args, shell=True)
+                    os.system(" ".join(command_args))
+                    
+              #      subprocess.run(command_args, shell=True)
                 else:
                     print(" ".join(command_args))
                     for o in range(self.outputs_n):
