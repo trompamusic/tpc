@@ -634,7 +634,7 @@ class TPLapp:
                     print("executing:")
                     print(" ".join(command_args))
                     os.system(" ".join(command_args))
-                    
+
               #      subprocess.run(command_args, shell=True)
                 else:
                     print(" ".join(command_args))
