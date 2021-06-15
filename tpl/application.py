@@ -641,8 +641,6 @@ class TPLapp:
                         fp = open(output_files[o], 'w')
                         fp.close()
 
-                config_outputs_fn = configparser.ConfigParser()
-                config_outputs_fn.read(os.path.join(self.temporary_data_path, outputs_fn))
 
                 for o in range(self.outputs_n):
                     # upload data to server

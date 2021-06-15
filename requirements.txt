@@ -1,4 +1,4 @@
 validators==0.18.1
 minio==7.00
 cryptography==3.3.2
-trompace-client@git+https://github.com/trompamusic/trompa-ce-client.git@tpl#egg=trompace-client
+trompace-client@git+https://github.com/trompamusic/trompa-ce-client.git#egg=trompace-client
