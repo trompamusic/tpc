@@ -660,7 +660,7 @@ class TPLapp:
                     # create digital document
                     identifier = self.create_ce_node(output_uri, label)
 
-
+                    print("Creating output identifier..")
                 #    link digital document to source
                     qry = trompace.mutations.controlaction.mutation_add_actioninterface_result(control_id,
                                                                                                identifier)

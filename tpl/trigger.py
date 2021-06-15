@@ -98,9 +98,9 @@ class Triggerer():
                     await websocket.send(tpl.tools.get_sub_dict(subscription))
 
                 elif is_ok:
-                    print("Message recieved, processesing")
+            #        print("Message recieved, processesing")
                     messageString = json.loads(message)
-                    print(messageString)
+              #      print(messageString)
                     if node_type == "MediaObject":
                         identifier = messageString["payload"]["data"]["MediaObjectCreateMutation"]["identifier"]
                         qry = trompace.queries.mediaobject.query_mediaobject(
@@ -117,6 +117,7 @@ class Triggerer():
                     else:
                         print("something wrong")
 
+                    print("submiting control action request for node ", identifier)
                     request_data = trompace.connection.submit_query(qry, auth_required=False)
                     contentUrl = request_data['data'][node_type][0]['contentUrl']
                     filename, file_extension = os.path.splitext(contentUrl)
@@ -130,10 +131,10 @@ class Triggerer():
                         client = action['client']
                         params = action['params']
                         qry = client.send_request([identifier], params, "", execute=self.execute)
-                        print(qry)
+                      #  print(qry)
                       #  action.e
                        # print(formatted)
-                    print("ok")
+                #    print("ok")
                #     control_id = messageString["payload"]["data"]["ControlActionRequest"]["identifier"]
                #     qry = trompace.queries.controlaction.query_controlaction(control_id)
                #     request_data = trompace.connection.submit_query(qry, auth_required=False)
